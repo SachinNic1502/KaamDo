@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "KaamDo",
+    "slug": "kaamdo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/logo/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kaamdo.app",
+      "icon": "./assets/logo/icon.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/logo/icon-square.png",
+        "monochromeImage": "./assets/logo/icon.png"
+      },
+      "package": "com.kaamdo.app",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/logo/favicon.png",
+      "name": "KaamDo — Har Kaam, Sahi Insaan"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo/icon.png",
+          "color": "#2563EB"
+        }
+      ]
+    ]
+  }
+}
