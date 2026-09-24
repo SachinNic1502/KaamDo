@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "src/lib/api-error.ts",
+    "src/lib/api-response.ts",
+    "src/lib/auth-middleware.ts",
+    "src/lib/security-schemas.ts",
+    "src/lib/resource-policy.ts",
+    "src/app/api/workers/route.ts",
+    "src/app/api/users/route.ts",
+    "src/app/api/payments/route.ts",
+    "src/app/api/jobs/route.ts",
+    "src/app/api/projects/route.ts",
+    "src/app/api/attendance/route.ts",
+    "src/app/api/disputes/route.ts",
+    "src/app/api/payment-methods/route.ts"
+  ]
+}

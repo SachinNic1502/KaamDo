@@ -117,10 +117,10 @@ export default function JobsScreen() {
   const allJobs: Job[] = (jobsRes?.data ?? []).map((j: any) => ({
     id: j._id,
     jobNumber: j.jobNumber ?? `#${j._id?.slice(-4)}`,
-    customerName: j.customerName ?? 'Customer',
-    service: j.service ?? j.title ?? 'Service',
+    customerName: j.customerId?.name ?? 'Customer',
+    service: j.categoryId?.name ?? j.title ?? 'Service',
     status: j.status,
-    date: j.date ?? '—',
+    date: j.scheduledDate ?? '—',
   }));
 
   const filteredJobs = allJobs.filter((job) => {

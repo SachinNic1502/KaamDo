@@ -45,8 +45,10 @@ const ServiceCategorySchema = new Schema<IServiceCategoryDocument>(
   { timestamps: true }
 );
 
-ServiceCategorySchema.index({ slug: 1 });
+ServiceCategorySchema.index({ slug: 1 }, { unique: true });
 ServiceCategorySchema.index({ isActive: 1 });
+ServiceCategorySchema.index({ name: "text", description: "text" }); // Text search index
+ServiceCategorySchema.index({ isActive: 1, name: 1 }); // Compound index for active categories
 
 export default mongoose.models.ServiceCategory ||
   mongoose.model<IServiceCategoryDocument>("ServiceCategory", ServiceCategorySchema);

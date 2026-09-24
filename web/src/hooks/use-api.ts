@@ -29,6 +29,9 @@ export interface QueryParams {
   role?: string;
   skill?: string;
   date?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  minRating?: number;
 }
 
 function buildQueryString(params: QueryParams): string {

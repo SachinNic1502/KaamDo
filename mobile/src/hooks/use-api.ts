@@ -48,6 +48,7 @@ export function useJobDetail(jobId: string) {
       return api.get<ApiResponse<Job>>(`/api/jobs?jobId=${jobId}`, token);
     },
     enabled: !!jobId,
+    refetchInterval: 10000,
   });
 }
 
@@ -56,7 +57,7 @@ export function useCreateJob() {
   return useMutation({
     mutationFn: async (data: Record<string, any>) => {
       const token = await getToken();
-      return api.post<ApiResponse<Job>>("/api/jobs", data, token);
+      return api.post<ApiResponse<{ job: Job; matchedWorkers: number }>>("/api/jobs", data, token);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
@@ -100,9 +101,9 @@ export function usePayments(params: Record<string, any> = {}) {
 export function useCreatePayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { jobId: string; paymentMethod: string }) => {
+    mutationFn: async (data: { action: "create-order" | "verify"; jobId: string; provider?: "razorpay" | "cashfree"; razorpay_payment_id?: string; razorpay_signature?: string }) => {
       const token = await getToken();
-      return api.post<ApiResponse<Payment>>("/api/payments", data, token);
+      return api.post<ApiResponse<unknown>>("/api/payments", data, token);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payments"] });

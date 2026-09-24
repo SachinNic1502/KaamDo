@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { Colors, Spacing, FontSize } from '../../constants';
@@ -9,6 +9,12 @@ import { onJobStatusUpdate } from '../../services/chat';
 export default function DashboardScreen() {
   const user = useSelector((state: any) => state.auth.user);
   const { mutate: updateJob } = useUpdateJob();
+  const handleJobAction = (jobId: string, status: "worker_accepted" | "rejected") => {
+    updateJob(
+      { jobId, status },
+      { onError: (error) => Alert.alert("Action failed", error.message) }
+    );
+  };
   const { mutate: updateWorkerProfile } = useUpdateWorkerProfile();
 
   const { data: assignedRes, refetch: refetchAssigned } = useJobs({ workerId: user?._id, status: 'worker_assigned' });
@@ -101,11 +107,11 @@ export default function DashboardScreen() {
             <View style={styles.jobActions}>
               <Text style={styles.priceText}>₹{job.price ?? '—'}</Text>
               <View style={styles.actionButtons}>
-                <TouchableOpacity style={styles.acceptButton} onPress={() => updateJob({ jobId: job._id, status: 'worker_accepted' })}>
+                <TouchableOpacity style={styles.acceptButton} onPress={() => handleJobAction(job._id, 'worker_accepted')}>
                   <Ionicons name="checkmark" size={18} color="#fff" />
                   <Text style={styles.acceptButtonText}>Accept</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.rejectButton} onPress={() => updateJob({ jobId: job._id, status: 'cancelled' })}>
+                <TouchableOpacity style={styles.rejectButton} onPress={() => handleJobAction(job._id, 'rejected')}>
                   <Ionicons name="close" size={18} color={Colors.error} />
                   <Text style={styles.rejectButtonText}>Reject</Text>
                 </TouchableOpacity>

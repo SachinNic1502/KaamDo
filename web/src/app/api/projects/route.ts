@@ -5,6 +5,9 @@ import { successResponse, errorResponse, paginatedResponse } from "@/lib/api-res
 import { requireAuth } from "@/lib/auth-middleware";
 import { createProjectSchema, paginationSchema } from "@/lib/validations";
 import { generateProjectNumber } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
+import { resourceScope } from "@/lib/resource-policy";
+import { objectIdSchema } from "@/lib/security-schemas";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,15 +18,7 @@ export async function GET(request: NextRequest) {
     const query = Object.fromEntries(searchParams);
     const { page, limit, search, status } = paginationSchema.parse(query);
 
-    const filter: Record<string, unknown> = {};
-
-    if (authUser.role === "customer") {
-      const user = await User.findOne({ phone: authUser.phone });
-      if (user) filter.customerId = user._id;
-    } else if (authUser.role === "contractor") {
-      const user = await User.findOne({ phone: authUser.phone });
-      if (user) filter.contractorId = user._id;
-    }
+    const filter: Record<string, unknown> = resourceScope(authUser, "projects");
 
     if (search) {
       filter.$or = [
@@ -44,8 +39,7 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(projects, total, page, limit);
   } catch (error) {
-    console.error("Get projects error:", error);
-    return errorResponse("Internal server error", 500);
+    return handleApiError(error);
   }
 }
 
@@ -99,21 +93,24 @@ export async function PATCH(request: NextRequest) {
 
     if (!projectId) return errorResponse("projectId is required");
 
-    const project = await Project.findById(projectId);
+    objectIdSchema.parse(projectId);
+    const project = await Project.findOne({ _id: projectId, ...resourceScope(authUser, "projects") });
     if (!project) return errorResponse("Project not found", 404);
 
-    if (milestoneIndex !== undefined && milestoneStatus) {
-      if (project.milestones[milestoneIndex]) {
-        project.milestones[milestoneIndex].status = milestoneStatus;
-        if (milestoneStatus === "completed") {
-          project.milestones[milestoneIndex].completedAt = new Date();
-        }
-        if (milestoneStatus === "approved") {
-          project.milestones[milestoneIndex].approvedAt = new Date();
-        }
-      }
+    // Ownership/financial fields require dedicated audited operations.
+    const allowedFields = ["title", "description"];
+    if (Object.keys(updates).some((key) => !allowedFields.includes(key))) {
+      return errorResponse("Unsupported project update", 400, "INVALID_REQUEST");
+    }
+    if (milestoneIndex !== undefined || milestoneStatus !== undefined) {
+      return errorResponse("Milestone updates are temporarily unavailable", 503, "MILESTONE_VALIDATION_UNAVAILABLE");
     }
 
+    if (!Object.keys(updates).length ||
+      (updates.title !== undefined && (typeof updates.title !== "string" || updates.title.trim().length < 5 || updates.title.length > 200)) ||
+      (updates.description !== undefined && (typeof updates.description !== "string" || updates.description.trim().length < 20 || updates.description.length > 10000))) {
+      return errorResponse("Invalid project update", 400, "INVALID_REQUEST");
+    }
     Object.assign(project, updates);
 
     const completedCount = project.milestones.filter(
@@ -127,7 +124,6 @@ export async function PATCH(request: NextRequest) {
 
     return successResponse(project, "Project updated");
   } catch (error) {
-    console.error("Update project error:", error);
-    return errorResponse("Internal server error", 500);
+    return handleApiError(error);
   }
 }

@@ -41,6 +41,7 @@ export interface IJobDocument extends Document {
   additionalCharges: IAdditionalChargeDocument[];
   materials: IMaterialDocument[];
   startOtp?: string;
+  startOtpFailures: number;
   completionOtp?: string;
   startTime?: Date;
   endTime?: Date;
@@ -122,6 +123,7 @@ const JobSchema = new Schema<IJobDocument>(
       },
     ],
     startOtp: String,
+    startOtpFailures: { type: Number, default: 0 },
     completionOtp: String,
     startTime: Date,
     endTime: Date,
@@ -130,14 +132,18 @@ const JobSchema = new Schema<IJobDocument>(
     cancellationReason: String,
     cancelledBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
-JobSchema.index({ jobNumber: 1 });
+JobSchema.index({ jobNumber: 1 }, { unique: true });
 JobSchema.index({ customerId: 1 });
 JobSchema.index({ workerId: 1 });
 JobSchema.index({ status: 1 });
 JobSchema.index({ categoryId: 1 });
 JobSchema.index({ createdAt: -1 });
+JobSchema.index({ scheduledDate: 1 });
+JobSchema.index({ status: 1, createdAt: -1 }); // Compound index for status filtering
+JobSchema.index({ customerId: 1, status: 1 }); // Compound index for customer jobs
+JobSchema.index({ workerId: 1, status: 1 }); // Compound index for worker jobs
 
 export default mongoose.models.Job || mongoose.model<IJobDocument>("Job", JobSchema);

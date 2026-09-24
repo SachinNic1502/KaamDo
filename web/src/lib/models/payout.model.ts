@@ -38,5 +38,7 @@ const PayoutSchema = new Schema<IPayoutDocument>(
 PayoutSchema.index({ workerId: 1 });
 PayoutSchema.index({ status: 1 });
 PayoutSchema.index({ createdAt: -1 });
+PayoutSchema.index({ workerId: 1, status: 1 }); // Compound index for worker payouts
+PayoutSchema.index({ processedAt: -1 }); // For processing history
 
 export default mongoose.models.Payout || mongoose.model<IPayoutDocument>("Payout", PayoutSchema);

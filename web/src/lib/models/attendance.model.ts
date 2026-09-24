@@ -41,6 +41,9 @@ AttendanceSchema.index({ jobId: 1 });
 AttendanceSchema.index({ workerId: 1 });
 AttendanceSchema.index({ date: 1 });
 AttendanceSchema.index({ status: 1 });
+AttendanceSchema.index({ workerId: 1, date: 1 }, { unique: true }); // Compound index for worker attendance by date
+AttendanceSchema.index({ jobId: 1, date: 1 }); // Compound index for job attendance by date
+AttendanceSchema.index({ status: 1, date: -1 }); // Compound index for status filtering
 
 export default mongoose.models.Attendance ||
   mongoose.model<IAttendanceDocument>("Attendance", AttendanceSchema);

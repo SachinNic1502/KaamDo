@@ -37,11 +37,14 @@ const PaymentSchema = new Schema<IPaymentDocument>(
   { timestamps: true }
 );
 
-PaymentSchema.index({ jobId: 1 });
+PaymentSchema.index({ jobId: 1 }, { unique: true });
 PaymentSchema.index({ customerId: 1 });
 PaymentSchema.index({ workerId: 1 });
 PaymentSchema.index({ status: 1 });
 PaymentSchema.index({ createdAt: -1 });
+PaymentSchema.index({ transactionId: 1 }, { unique: true, sparse: true });
+PaymentSchema.index({ customerId: 1, status: 1 }); // Compound index for customer payments
+PaymentSchema.index({ workerId: 1, status: 1 }); // Compound index for worker payments
 
 export default mongoose.models.Payment ||
   mongoose.model<IPaymentDocument>("Payment", PaymentSchema);

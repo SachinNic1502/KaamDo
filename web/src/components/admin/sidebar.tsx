@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { api, getToken, removeToken } from "@/lib/api-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -41,8 +43,8 @@ const navItems: NavItem[] = [
     href: "/admin/users",
     icon: Users,
     children: [
-      { title: "Customers", href: "/admin/users/customers", icon: Users },
-      { title: "Workers", href: "/admin/users/workers", icon: Users },
+      { title: "Customers", href: "/admin/users?role=customer", icon: Users },
+      { title: "Workers", href: "/admin/users?role=worker", icon: Users },
       { title: "Contractors", href: "/admin/users/contractors", icon: Building2 },
     ],
   },
@@ -71,10 +73,9 @@ const navItems: NavItem[] = [
     href: "/admin/payments",
     icon: CreditCard,
     children: [
-      { title: "Transactions", href: "/admin/payments/transactions", icon: CreditCard },
+      { title: "Transactions", href: "/admin/payments", icon: CreditCard },
       { title: "Payouts", href: "/admin/payments/payouts", icon: CreditCard },
-      { title: "Commission", href: "/admin/payments/commission", icon: CreditCard },
-      { title: "Refunds", href: "/admin/payments/refunds", icon: CreditCard },
+      { title: "Reconciliation", href: "/admin/payments/reconciliation", icon: CreditCard },
     ],
   },
   {
@@ -151,6 +152,11 @@ function NavItemComponent({ item, depth = 0 }: { item: NavItem; depth?: number }
 }
 
 export function Sidebar() {
+  const router = useRouter(), cache = useQueryClient();
+  async function logout() {
+    try { await api.post("/api/auth", { action: "logout" }, getToken() ?? undefined); }
+    finally { removeToken(); await cache.cancelQueries(); cache.clear(); router.replace("/login"); }
+  }
   return (
     <div className="flex flex-col h-full border-r bg-muted/30">
       <div className="p-6 border-b">
@@ -186,9 +192,9 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="p-4 border-t">
-        <button className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
+        <button onClick={() => void logout().catch(() => {})} className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
           <LogOut className="h-4 w-4" />
-          <span>Logout</span>
+          <span>Logout all devices</span>
         </button>
       </div>
     </div>

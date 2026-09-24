@@ -1,4 +1,5 @@
 export interface User {
+  notificationSettings?: { jobUpdates: boolean; chatMessages: boolean; paymentReceipts: boolean; disputeUpdates: boolean };
   _id: string;
   name: string;
   phone: string;

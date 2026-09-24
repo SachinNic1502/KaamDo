@@ -1,19 +1,46 @@
 import { z } from "zod";
 
+const normalizedPhone = z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid phone number").transform(value => {
+  const digits = value.replace(/^\+/, "");
+  return digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
+});
+
 export const phoneSchema = z.object({
-  phone: z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid phone number"),
+  phone: normalizedPhone,
+});
+
+export const loginSchema = z.object({
+  phone: normalizedPhone,
+  password: z.string().min(1, "Password is required"),
+});
+
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
 });
 
 export const otpSchema = z.object({
-  phone: z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid phone number"),
-  otp: z.string().length(4, "OTP must be 4 digits"),
+  phone: normalizedPhone,
+  otp: z.string().regex(/^\d{4}$/, "OTP must be 4 digits"),
 });
 
 export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid phone number"),
+  phone: normalizedPhone,
   email: z.string().email("Invalid email").optional(),
   role: z.enum(["customer", "worker", "contractor"]),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character")
+    .optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -46,15 +73,15 @@ export const contractorProfileSchema = z.object({
 });
 
 export const createJobSchema = z.object({
-  categoryId: z.string(),
-  subcategoryId: z.string(),
+  categoryId: z.string().regex(/^[a-f\d]{24}$/i),
+  subcategoryId: z.string().regex(/^[a-f\d]{24}$/i),
   description: z.string().min(10),
   images: z.array(z.string().url()).optional(),
   address: z.object({
     label: z.string(),
     address: z.string().min(5),
     city: z.string(),
-    state: z.string(),
+    state: z.string().trim().min(1),
     pincode: z.string(),
     lat: z.number().optional(),
     lng: z.number().optional(),

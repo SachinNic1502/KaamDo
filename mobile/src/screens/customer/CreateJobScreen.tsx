@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { uploadMultipleImages } from '../../services/upload';
 import * as ImagePicker from 'expo-image-picker';
 import { useSelector } from 'react-redux';
 import { Colors, Spacing, FontSize } from '../../constants';
@@ -26,6 +27,7 @@ interface JobFormData {
   addressLabel: string;
   address: string;
   city: string;
+  state: string;
   pincode: string;
   date: string;
   time: string;
@@ -45,6 +47,7 @@ export default function CreateJobScreen() {
     addressLabel: '',
     address: '',
     city: '',
+    state: '',
     pincode: '',
     date: '',
     time: '',
@@ -88,25 +91,37 @@ export default function CreateJobScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const selectedCategory = categories.find((c) => c.name === form.category);
+    const subcategory = selectedCategory?.subcategories.find(s => s.name === form.subcategory);
+    const scheduled = new Date(form.date + 'T' + form.time + ':00');
+    if (!subcategory || !form.state.trim() || form.description.trim().length < 10 || !Number.isFinite(scheduled.getTime()) || scheduled.getTime() <= Date.now()) {
+      Alert.alert('Check booking', 'Choose a service, enter at least 10 characters, your state, and a future date (YYYY-MM-DD) and time (HH:mm).');
+      return;
+    }
+    let images: string[];
+    try { images = await uploadMultipleImages(form.photos); }
+    catch { Alert.alert('Upload failed', 'Your photos could not be uploaded. Try again or remove them.'); return; }
     createJob(
       {
         categoryId: selectedCategory?._id,
-        subcategory: form.subcategory,
+        subcategoryId: subcategory._id,
+        pricingModel: subcategory.pricingModel,
         description: form.description,
-        photos: form.photos,
+        images,
         address: {
           label: form.addressLabel,
-          street: form.address,
+          address: form.address,
+          state: form.state,
           city: form.city,
           pincode: form.pincode,
         },
-        preferredDate: form.date,
-        preferredTime: form.time,
-        customerId: user?._id,
+        scheduledDate: scheduled.toISOString(),
+        scheduledTime: form.time,
+
       },
       {
+        onError: (error) => Alert.alert('Booking failed', error.message),
         onSuccess: () => {
           Alert.alert('Job Created', 'Your job has been submitted successfully!', [
             { text: 'OK' },
@@ -263,6 +278,8 @@ export default function CreateJobScreen() {
         onChangeText={(val) => updateForm('city', val)}
       />
 
+      <Text style={[styles.fieldLabel, { marginTop: Spacing.md }]}>State *</Text>
+      <TextInput style={styles.textInput} placeholder="State" value={form.state} onChangeText={(value) => updateForm('state', value)} />
       <Text style={[styles.fieldLabel, { marginTop: Spacing.md }]}>Pincode *</Text>
       <TextInput
         style={styles.textInput}

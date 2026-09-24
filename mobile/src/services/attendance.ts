@@ -102,6 +102,8 @@ export async function checkOut(attendanceId: string): Promise<LocationCoords | n
   return location;
 }
 
+const activeTracking = new Set<ReturnType<typeof setInterval>>();
+export function stopAllLocationTracking() { for (const timer of activeTracking) clearInterval(timer); activeTracking.clear(); }
 export async function startLocationTracking(
   jobId: string,
   intervalMs: number = 30000,
@@ -134,9 +136,10 @@ export async function startLocationTracking(
     }
   }, intervalMs);
 
+  activeTracking.add(interval);
   return interval;
 }
 
 export function stopLocationTracking(interval: ReturnType<typeof setInterval> | null) {
-  if (interval) clearInterval(interval);
+  if (interval) { clearInterval(interval); activeTracking.delete(interval); }
 }

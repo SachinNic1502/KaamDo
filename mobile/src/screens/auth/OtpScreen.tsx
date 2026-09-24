@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from "react-native";
 import { useDispatch } from "react-redux";
-import { AppDispatch } from "../../store";
-import { verifyOtp } from "../../store/authSlice";
+import { AppDispatch, RootState } from "../../store";
+import { verifyOtp, sendOtp } from "../../store/authSlice";
+import { useSelector } from "react-redux";
 import { Colors, Spacing, FontSize } from "../../constants";
 
 export default function OtpScreen({ route, navigation }: any) {
@@ -18,6 +20,26 @@ export default function OtpScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const { otpExpiresAt } = useSelector((state: RootState) => state.auth);
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const remaining = Math.max(0, Math.ceil(((otpExpiresAt ?? 0) - now) / 1000));
+  const resendRemaining = Math.max(0, Math.ceil(((otpExpiresAt ?? 0) - 240000 - now) / 1000));
+  const handleResendOtp = async () => {
+    if (loading || resendRemaining > 0) return;
+    setLoading(true);
+    try {
+      await dispatch(sendOtp(phone)).unwrap();
+      setOtp(["", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    } catch {
+      Alert.alert("Error", "Unable to send OTP. Please try again.");
+    } finally { setLoading(false); }
+  };
 
   const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) {
@@ -67,8 +89,19 @@ export default function OtpScreen({ route, navigation }: any) {
 
         <Text style={styles.title}>Verify OTP</Text>
         <Text style={styles.subtitle}>
-          Enter the 4-digit code sent to +91 {phone}
+          Enter the 4-digit code sent on WhatsApp to +91 {phone}
         </Text>
+
+        {/* OTP Expiry Timer */}
+        {otpExpiresAt && (
+          <View style={styles.timerContainer}>
+            <Text style={styles.timerText}>
+              {remaining > 0
+                ? `Expires in ${remaining}s`
+                : "Expired"}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
@@ -96,8 +129,12 @@ export default function OtpScreen({ route, navigation }: any) {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.resendButton}>
-          <Text style={styles.resendText}>Resend OTP</Text>
+        <TouchableOpacity style={styles.resendButton} onPress={handleResendOtp} disabled={loading || resendRemaining > 0}>
+          <Text style={styles.resendText}>
+            {resendRemaining > 0
+              ? `Resend in ${resendRemaining}s`
+              : "Resend OTP"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -172,10 +209,20 @@ const styles = StyleSheet.create({
   resendButton: {
     alignItems: "center",
     paddingVertical: Spacing.sm,
+    marginTop: Spacing.md,
   },
   resendText: {
     color: Colors.primary,
     fontSize: FontSize.md,
+    fontWeight: "500",
+  },
+  timerContainer: {
+    alignItems: "center",
+    marginBottom: Spacing.md,
+  },
+  timerText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
     fontWeight: "500",
   },
 });

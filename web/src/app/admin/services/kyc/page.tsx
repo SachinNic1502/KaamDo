@@ -8,27 +8,56 @@ import { Search, CheckCircle, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useWorkers, useUpdateWorker } from "@/hooks/use-api";
 
+interface KycWorker {
+  _id: string;
+  id?: string;
+  name?: string;
+  skill?: string;
+  skills?: string[];
+  experience?: number;
+  status?: string;
+  documents?: { identity?: unknown; address?: unknown; certifications?: unknown };
+  userId?: string | { _id?: string; name?: string; phone?: string };
+}
+
 export default function KYCPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { data, isLoading, error } = useWorkers();
+  const { data, isLoading, error, refetch } = useWorkers();
   const updateWorker = useUpdateWorker();
 
-  const workers = (data?.data as any[]) || [];
+  const workers = (data?.data as KycWorker[]) || [];
+  const getUserId = (w: KycWorker): string => {
+    const u = w.userId;
+    return (u && typeof u === "object" ? u._id : u) ?? w.id ?? "";
+  };
+  const getName = (w: KycWorker): string => {
+    const u = w.userId;
+    return (u && typeof u === "object" ? u.name : undefined) ?? w.name ?? "Unknown";
+  };
+  const getSkills = (w: KycWorker): string => {
+    if (Array.isArray(w.skills)) return w.skills.join(", ");
+    return w.skill ?? "";
+  };
   const pendingKYC = workers.filter(
-    (w: any) => w.status === "submitted" || w.status === "under_review"
+    (w: KycWorker) => w.status === "submitted" || w.status === "under_review"
   );
-  const filtered = pendingKYC.filter(
-    (w: any) =>
-      w.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      w.skill?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = pendingKYC.filter((w: KycWorker) => {
+    const q = searchQuery.toLowerCase();
+    return getName(w).toLowerCase().includes(q) || getSkills(w).toLowerCase().includes(q);
+  });
 
-  const handleApprove = (workerId: string) => {
-    updateWorker.mutate({ workerId, status: "verified" });
+  const handleApprove = (worker: KycWorker) => {
+    updateWorker.mutate(
+      { workerId: getUserId(worker), status: "verified" },
+      { onSuccess: () => refetch() }
+    );
   };
 
-  const handleReject = (workerId: string) => {
-    updateWorker.mutate({ workerId, status: "rejected" });
+  const handleReject = (worker: KycWorker) => {
+    updateWorker.mutate(
+      { workerId: getUserId(worker), status: "rejected" },
+      { onSuccess: () => refetch() }
+    );
   };
 
   if (isLoading) {
@@ -65,13 +94,13 @@ export default function KYCPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Submitted</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{pendingKYC.filter((w: any) => w.status === "submitted").length}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{pendingKYC.filter((w: KycWorker) => w.status === "submitted").length}</div></CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Under Review</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">{pendingKYC.filter((w: any) => w.status === "under_review").length}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{pendingKYC.filter((w: KycWorker) => w.status === "under_review").length}</div></CardContent>
         </Card>
       </div>
 
@@ -84,12 +113,17 @@ export default function KYCPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((worker: any) => (
-              <div key={worker.id} className="border rounded-lg p-4 space-y-4">
+            {updateWorker.isError && (
+              <div className="col-span-full text-center text-sm text-red-600" role="alert">
+                {(updateWorker.error as Error)?.message || "Failed to update worker status. Please try again."}
+              </div>
+            )}
+            {filtered.map((worker: KycWorker) => (
+              <div key={worker._id ?? getUserId(worker)} className="border rounded-lg p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold">{worker.name}</h3>
-                    <p className="text-sm text-muted-foreground">{worker.skill} {worker.experience ? `• ${worker.experience}` : ""}</p>
+                    <h3 className="font-semibold">{getName(worker)}</h3>
+                    <p className="text-sm text-muted-foreground">{getSkills(worker)} {worker.experience ? `• ${worker.experience} yrs` : ""}</p>
                   </div>
                   <Badge variant="outline">{worker.status}</Badge>
                 </div>
@@ -111,7 +145,7 @@ export default function KYCPage() {
                   <Button
                     className="flex-1"
                     size="sm"
-                    onClick={() => handleApprove(worker.id)}
+                    onClick={() => handleApprove(worker)}
                     disabled={updateWorker.isPending}
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />Approve
@@ -119,7 +153,7 @@ export default function KYCPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleReject(worker.id)}
+                    onClick={() => handleReject(worker)}
                     disabled={updateWorker.isPending}
                   >
                     <XCircle className="h-4 w-4" />

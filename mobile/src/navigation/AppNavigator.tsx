@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -12,6 +13,7 @@ import { LogoIcon } from "../components/Logo";
 
 import LoginScreen from "../screens/auth/LoginScreen";
 import OtpScreen from "../screens/auth/OtpScreen";
+import SettingsScreen from "../screens/common/SettingsScreen";
 
 import CustomerHomeScreen from "../screens/customer/HomeScreen";
 import CustomerSearchScreen from "../screens/customer/SearchScreen";
@@ -87,11 +89,14 @@ function WorkerTabs() {
 
 export default function AppNavigator() {
   const dispatch = useDispatch<AppDispatch>();
+  const queryClient = useQueryClient();
   const { user, isAuthenticated, isLoading } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     dispatch(loadUser());
   }, []);
+
+  useEffect(() => { if (!isAuthenticated) { void queryClient.cancelQueries(); queryClient.clear(); } }, [isAuthenticated, queryClient]);
 
   if (isLoading) {
     return (
@@ -129,6 +134,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Rating" component={RatingScreen} />
             <Stack.Screen name="Dispute" component={DisputeScreen} />
             <Stack.Screen name="Promo" component={PromoScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
           </>
         )}
       </Stack.Navigator>

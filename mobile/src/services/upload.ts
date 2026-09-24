@@ -19,19 +19,7 @@ export async function pickAndUploadImage(): Promise<string | null> {
 }
 
 export async function uploadToCloudinary(uri: string): Promise<string> {
-  if (!CLOUDINARY_URL) {
-    const token = await SecureStore.getItemAsync("token");
-    const formData = new FormData();
-    const filename = uri.split("/").pop() || "photo.jpg";
-    const ext = filename.split(".").pop()?.toLowerCase() || "jpg";
-    formData.append("file", { uri, name: filename, type: `image/${ext}` } as any);
-    const res = await api.post<{ data: { url: string } }>(
-      "/api/users",
-      { action: "upload-image", file: formData } as any,
-      token || undefined
-    );
-    return res.data?.url || uri;
-  }
+  if (!CLOUDINARY_URL) throw new Error("Image upload is not configured");
 
   const formData = new FormData();
   const filename = uri.split("/").pop() || "photo.jpg";

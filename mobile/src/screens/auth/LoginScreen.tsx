@@ -72,7 +72,7 @@ export default function LoginScreen({ navigation }: any) {
             disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {loading ? "Sending OTP..." : "Send OTP"}
+              {loading ? "Sending OTP..." : "Send WhatsApp OTP"}
             </Text>
           </TouchableOpacity>
         </View>

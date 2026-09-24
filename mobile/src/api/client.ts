@@ -23,9 +23,17 @@ class ApiClient {
       ...fetchOptions,
       headers: { ...this.getHeaders(token), ...fetchOptions.headers },
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Request failed");
-    return data;
+    let data: unknown = null;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+    if (!response.ok) {
+      const err = data as { error?: string; message?: string } | null;
+      throw new Error(err?.error || err?.message || "Request failed");
+    }
+    return data as T;
   }
 
   get<T>(endpoint: string, token?: string) {

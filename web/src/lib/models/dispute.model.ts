@@ -37,6 +37,8 @@ DisputeSchema.index({ jobId: 1 });
 DisputeSchema.index({ raisedBy: 1 });
 DisputeSchema.index({ status: 1 });
 DisputeSchema.index({ createdAt: -1 });
+DisputeSchema.index({ status: 1, createdAt: -1 }); // Compound index for status filtering
+DisputeSchema.index({ resolvedBy: 1 }); // For admin resolved disputes
 
 export default mongoose.models.Dispute ||
   mongoose.model<IDisputeDocument>("Dispute", DisputeSchema);

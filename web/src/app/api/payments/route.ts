@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Payment, Job, User, Commission, Payout } from "@/lib/models";
+import { Job, Payment } from "@/lib/models";
 import { successResponse, errorResponse, paginatedResponse } from "@/lib/api-response";
-import { requireAuth } from "@/lib/auth-middleware";
+import { requireAuth, requireRole } from "@/lib/auth-middleware";
 import { paginationSchema } from "@/lib/validations";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,11 +18,11 @@ export async function GET(request: NextRequest) {
     const filter: Record<string, unknown> = {};
 
     if (authUser.role === "customer") {
-      const user = await User.findOne({ phone: authUser.phone });
-      if (user) filter.customerId = user._id;
+      filter.customerId = authUser.userId;
     } else if (authUser.role === "worker") {
-      const user = await User.findOne({ phone: authUser.phone });
-      if (user) filter.workerId = user._id;
+      filter.workerId = authUser.userId;
+    } else if (authUser.role !== "admin") {
+      return errorResponse("Forbidden", 403, "FORBIDDEN");
     }
 
     if (search) {
@@ -43,83 +44,38 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(payments, total, page, limit);
   } catch (error) {
-    console.error("Get payments error:", error);
-    return errorResponse("Internal server error", 500);
+    return handleApiError(error);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    await connectDB();
-    const authUser = await requireAuth(request);
-
-    const body = await request.json();
-    const { jobId, paymentMethod } = body;
-
-    if (!jobId) return errorResponse("jobId is required");
-
-    const job = await Job.findById(jobId);
-    if (!job) return errorResponse("Job not found", 404);
-    if (job.status !== "completed") return errorResponse("Job not completed", 400);
-
-    const existingPayment = await Payment.findOne({ jobId, status: "completed" });
-    if (existingPayment) return errorResponse("Payment already made", 409);
-
-    const totalAmount = job.finalPrice || job.estimatedPrice || 0;
-    const additionalAmount = job.additionalCharges
-      .filter((c: { status: string }) => c.status === "approved")
-      .reduce((sum: number, c: { amount: number }) => sum + c.amount, 0);
-    const materialAmount = job.materials.reduce(
-      (sum: number, m: { totalPrice: number }) => sum + m.totalPrice,
-      0
-    );
-
-    const finalAmount = totalAmount + additionalAmount + materialAmount;
-
-    const commissionRule = await Commission.findOne({
-      $or: [{ category: job.categoryId }, { category: "default" }],
-      isActive: true,
-    });
-
-    let platformFee = 0;
-    if (commissionRule) {
-      if (commissionRule.type === "percentage") {
-        platformFee = (finalAmount * commissionRule.value) / 100;
-      } else {
-        platformFee = commissionRule.value;
-      }
+    const user = await requireRole(request, ["customer", "admin"]);
+    if (process.env.PAYMENTS_ENABLED !== "true") {
+      return errorResponse(
+        "Payments are temporarily unavailable. Please try again later.",
+        503,
+        "PAYMENTS_DISABLED"
+      );
     }
-
-    const workerEarning = finalAmount - platformFee;
-
-    const payment = await Payment.create({
-      jobId,
-      customerId: job.customerId,
-      workerId: job.workerId,
-      amount: finalAmount,
-      platformFee,
-      workerEarning,
-      status: "completed",
-      paymentMethod,
-      transactionId: `TXN-${Date.now()}`,
-    });
-
-    job.status = "paid";
-    await job.save();
-
-    const payout = await Payout.create({
-      workerId: job.workerId,
-      amount: workerEarning,
-      status: "eligible",
-      bankDetails: {
-        accountNumber: "Pending",
-        ifsc: "Pending",
-      },
-    });
-
-    return successResponse({ payment, payout }, "Payment processed", 201);
+    const { z } = await import("zod");
+    const body = z.object({ action: z.enum(["create-order", "verify"]), jobId: z.string().regex(/^[a-f\d]{24}$/i), provider: z.enum(["razorpay", "cashfree"]).default("razorpay"), razorpay_payment_id: z.string().max(100).optional(), razorpay_signature: z.string().regex(/^[a-f0-9]{64}$/i).optional() }).parse(await request.json());
+    const { createCheckout, confirmCheckout } = await import("@/lib/services/checkout");
+    
+    // Verify job ownership before proceeding to checkout
+    await connectDB();
+    const job = await Job.findById(body.jobId).select("customerId pricingModel").lean();
+    if (!job) return errorResponse("Job not found", 404);
+    if (job.customerId.toString() !== user.userId && user.role !== "admin") {
+      return errorResponse("Forbidden: Not your job", 403, "FORBIDDEN");
+    }
+    if (job.pricingModel !== "fixed" && job.pricingModel !== "visit") {
+      return errorResponse("Payment not required for this job type", 400);
+    }
+    
+    const result = body.action === "create-order" ? await createCheckout(user.userId, body.jobId, body.provider) : await confirmCheckout(user.userId, body.jobId, body.razorpay_payment_id, body.razorpay_signature);
+    return successResponse(result);
   } catch (error) {
-    console.error("Create payment error:", error);
-    return errorResponse("Internal server error", 500);
+    return handleApiError(error);
   }
 }

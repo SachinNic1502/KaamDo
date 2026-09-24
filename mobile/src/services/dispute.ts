@@ -5,7 +5,7 @@ export interface DisputeData {
   jobId: string;
   reason: string;
   description: string;
-  evidence?: string[];
+  images?: string[];
 }
 
 export interface Dispute {
@@ -15,8 +15,8 @@ export interface Dispute {
   againstUser: { _id: string; name: string };
   reason: string;
   description: string;
-  evidence: string[];
-  status: "open" | "under_review" | "resolved" | "closed";
+  images: string[];
+  status: "raised" | "under_review" | "evidence_submitted" | "support_review" | "resolved";
   resolution?: string;
   createdAt: string;
 }
@@ -24,7 +24,7 @@ export interface Dispute {
 export async function raiseDispute(data: DisputeData): Promise<void> {
   const token = await SecureStore.getItemAsync("token");
   if (!token) throw new Error("Not authenticated");
-  await api.post("/api/disputes", data, token);
+  await api.post("/api/disputes", { ...data, images: data.images || [] }, token);
 }
 
 export async function getDisputes(params?: { status?: string }): Promise<Dispute[]> {

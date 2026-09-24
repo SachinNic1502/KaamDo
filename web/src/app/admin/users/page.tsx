@@ -19,7 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Search, MoreHorizontal, Eye, Ban, CheckCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Suspense, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useUsers } from "@/hooks/use-api";
 
 const statusColors: Record<string, string> = {
@@ -38,8 +39,20 @@ const roleColors: Record<string, string> = {
 };
 
 export default function UsersPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-12 text-muted-foreground">Loading users...</div>}>
+      <UsersContent />
+    </Suspense>
+  );
+}
+
+function UsersContent() {
+  const searchParams = useSearchParams();
+  const initialRole = searchParams.get("role");
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState(
+    initialRole && ["customer", "worker", "contractor"].includes(initialRole) ? initialRole : "all"
+  );
   const [page, setPage] = useState(1);
   const limit = 10;
 

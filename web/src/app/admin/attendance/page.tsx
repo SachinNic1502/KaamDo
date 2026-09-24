@@ -27,30 +27,15 @@ const statusColors: Record<string, string> = {
 
 interface AttendanceRecord {
   _id: string;
-  worker?: { name?: string } | string;
-  job?: { _id?: string; jobId?: string; name?: string } | string;
-  customer?: { name?: string } | string;
+  workerId?: { name?: string; phone?: string } | string;
+  jobId?: { jobNumber?: string } | string;
+  customerId?: { name?: string; phone?: string } | string;
   date?: string;
   checkIn?: string | null;
   checkOut?: string | null;
-  hours?: number;
+  workingHours?: number;
   status?: string;
-  wage?: number;
-}
-
-function getField(
-  obj: unknown,
-  field: string
-): string {
-  if (!obj) return "-";
-  if (typeof obj === "string") return obj;
-  const val = (obj as Record<string, unknown>)[field];
-  if (!val) return "-";
-  if (typeof val === "object" && val !== null) {
-    const nested = (val as Record<string, unknown>)["name"] || (val as Record<string, unknown>)["jobId"];
-    return String(nested ?? "-");
-  }
-  return String(val);
+  approvedWage?: number;
 }
 
 export default function AttendancePage() {
@@ -60,22 +45,22 @@ export default function AttendancePage() {
   const { data, isLoading, error } = useAttendance();
   const updateAttendance = useUpdateAttendance();
 
-  const records: AttendanceRecord[] = (data as unknown as AttendanceRecord[]) || [];
+  const records: AttendanceRecord[] = (data as unknown as { data?: AttendanceRecord[] })?.data ?? [];
 
   const filtered = records.filter((r) => {
-    const workerName = getField(r.worker, "name");
-    const jobName = getField(r.job, "name");
-    const jobId = getField(r.job, "jobId");
+    const workerName = (r.workerId && typeof r.workerId === "object" && r.workerId.name) || (typeof r.workerId === "string" && r.workerId) || "-";
+    const jobNumber = (r.jobId && typeof r.jobId === "object" && r.jobId.jobNumber) || (typeof r.jobId === "string" && r.jobId) || "-";
+    const customerName = (r.customerId && typeof r.customerId === "object" && r.customerId.name) || (typeof r.customerId === "string" && r.customerId) || "-";
     const matchSearch =
       workerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      jobName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      jobId.toLowerCase().includes(searchQuery.toLowerCase());
+      jobNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchDate = r.date ? r.date.startsWith(dateFilter) : true;
     return matchSearch && matchDate;
   });
 
-  const totalHours = filtered.reduce((sum, r) => sum + (r.hours || 0), 0);
-  const totalWage = filtered.reduce((sum, r) => sum + (r.wage || 0), 0);
+  const totalHours = filtered.reduce((sum, r) => sum + (r.workingHours || 0), 0);
+  const totalWage = filtered.reduce((sum, r) => sum + (r.approvedWage || 0), 0);
   const presentCount = filtered.filter((r) => r.status !== "absent").length;
 
   const handleStatus = (id: string, status: string) => {
@@ -158,16 +143,20 @@ export default function AttendancePage() {
                     <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No records found.</TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((record) => (
+                  filtered.map((record) => {
+                    const workerName = (record.workerId && typeof record.workerId === "object" && record.workerId.name) || (typeof record.workerId === "string" ? record.workerId : "-");
+                    const jobNumber = (record.jobId && typeof record.jobId === "object" && record.jobId.jobNumber) || (typeof record.jobId === "string" ? record.jobId : "-");
+                    const customerName = (record.customerId && typeof record.customerId === "object" && record.customerId.name) || (typeof record.customerId === "string" ? record.customerId : "-");
+                    return (
                     <TableRow key={record._id}>
-                      <TableCell className="font-medium">{getField(record.worker, "name")}</TableCell>
-                      <TableCell>{getField(record.job, "jobId")}</TableCell>
-                      <TableCell>{getField(record.customer, "name")}</TableCell>
+                      <TableCell className="font-medium">{workerName}</TableCell>
+                      <TableCell>{jobNumber}</TableCell>
+                      <TableCell>{customerName}</TableCell>
                       <TableCell>{record.checkIn || "-"}</TableCell>
                       <TableCell>{record.checkOut || "-"}</TableCell>
-                      <TableCell>{record.hours || 0}h</TableCell>
+                      <TableCell>{record.workingHours || 0}h</TableCell>
                       <TableCell><Badge className={statusColors[record.status || ""]}>{record.status}</Badge></TableCell>
-                      <TableCell>₹{record.wage || 0}</TableCell>
+                      <TableCell>₹{record.approvedWage || 0}</TableCell>
                       <TableCell className="text-right">
                         {record.status === "present" && (
                           <div className="flex gap-1 justify-end">
@@ -191,7 +180,8 @@ export default function AttendancePage() {
                         )}
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

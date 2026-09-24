@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   StyleSheet,
   Alert,
   Linking,
+  Modal,
+  TextInput,
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,27 +31,39 @@ export default function JobDetailScreen({ route }: any) {
   const jobId = route?.params?.jobId ?? "";
   const user = useSelector((state: any) => state.auth.user);
   const { data: jobRes, isLoading } = useJobDetail(jobId);
-  const { mutate: updateJob, isPending } = useUpdateJob();
+  const { mutate: mutateJob, isPending } = useUpdateJob();
+  const updateJob = (updates: { jobId: string; [key: string]: unknown }) => mutateJob(updates, { onError: error => Alert.alert("Job update failed", error.message) });
 
   const raw: any = jobRes?.data ?? {};
+  const chargeList: { amount?: number; status?: string; description?: string }[] = Array.isArray(raw.additionalCharges)
+    ? raw.additionalCharges
+    : [];
+  const approvedCharges = chargeList.reduce((sum, c) => sum + (c.status === "approved" ? c.amount ?? 0 : 0), 0);
+  const pendingCharges = chargeList.reduce((sum, c) => sum + (c.status === "pending" ? c.amount ?? 0 : 0), 0);
   const job = {
     id: raw._id ?? jobId,
     jobNumber: raw.jobNumber ?? `#${jobId?.slice(-4)}`,
     status: (raw.status ?? "worker_assigned") as JobStatus,
-    customerName: raw.customerName ?? "Customer",
-    customerPhone: raw.customerPhone ?? "",
-    customerAddress: raw.customerAddress ?? "",
-    serviceDetails: raw.service ?? raw.title ?? "",
+    customerName: raw.customerId?.name ?? "Customer",
+    customerPhone: raw.customerId?.phone ?? "",
+    customerAddress: raw.address?.address ?? "",
+    serviceDetails: raw.categoryId?.name ?? "",
     description: raw.description ?? "",
-    price: raw.price ?? 0,
-    additionalCharges: raw.additionalCharges ?? 0,
-    latitude: raw.latitude ?? raw.location?.lat ?? 0,
-    longitude: raw.longitude ?? raw.location?.lng ?? 0,
+    price: raw.estimatedPrice ?? 0,
+    additionalCharges: approvedCharges,
+    pendingCharges,
+    latitude: raw.address?.lat ?? 0,
+    longitude: raw.address?.lng ?? 0,
   };
 
   const [otp, setOtp] = useState("");
+  const [chargeModalVisible, setChargeModalVisible] = useState(false);
+  const [chargeAmount, setChargeAmount] = useState("");
+  const [chargeDescription, setChargeDescription] = useState("");
   const trackingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const attendanceIdRef = useRef<string | null>(null);
+
+  useEffect(() => () => stopLocationTracking(trackingInterval.current), []);
 
   const handleCall = () => {
     const url = `tel:${job.customerPhone.replace(/\s/g, "")}`;
@@ -73,7 +87,7 @@ export default function JobDetailScreen({ route }: any) {
         text: "Reject",
         style: "destructive",
         onPress: () => {
-          updateJob({ jobId, status: "cancelled" });
+          updateJob({ jobId, status: "rejected" });
         },
       },
     ]);
@@ -89,10 +103,7 @@ export default function JobDetailScreen({ route }: any) {
       stopLocationTracking(trackingInterval.current);
       trackingInterval.current = null;
     }
-    const result = await checkIn(jobId);
-    if (result) {
-      attendanceIdRef.current = result.attendanceId;
-    }
+
     updateJob({ jobId, status: "arrived" });
   };
 
@@ -106,24 +117,32 @@ export default function JobDetailScreen({ route }: any) {
   };
 
   const handleRequestCompletion = async () => {
-    if (attendanceIdRef.current) {
-      await checkOut(attendanceIdRef.current);
-      attendanceIdRef.current = null;
-    }
+
     updateJob({ jobId, status: "completion_requested" });
   };
 
   const handleAddCharge = () => {
-    Alert.prompt(
-      "Additional Charge",
-      "Enter amount (₹)",
-      (value) => {
-        const amount = parseInt(value || "0", 10);
-        if (!isNaN(amount) && amount > 0) {
-          updateJob({ jobId, additionalCharges: (job.additionalCharges ?? 0) + amount });
-        }
-      },
-      "plain-text"
+    setChargeAmount("");
+    setChargeDescription("");
+    setChargeModalVisible(true);
+  };
+
+  const handleSubmitCharge = () => {
+    const amount = parseInt(chargeAmount, 10);
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      Alert.alert("Invalid amount", "Enter a positive whole-rupee amount.");
+      return;
+    }
+    if (chargeDescription.trim().length < 5) {
+      Alert.alert("Description required", "Describe the charge in at least 5 characters.");
+      return;
+    }
+    mutateJob(
+      { jobId, additionalCharge: { description: chargeDescription.trim(), amount } },
+      {
+        onSuccess: () => setChargeModalVisible(false),
+        onError: (error) => Alert.alert("Charge request failed", error.message),
+      }
     );
   };
 
@@ -283,6 +302,8 @@ export default function JobDetailScreen({ route }: any) {
 
   const totalPrice = job.price + job.additionalCharges;
 
+  if (isLoading) return <Text>Loading job…</Text>;
+  if (!jobRes?.data) return <Text>Job unavailable. Return to your jobs and retry.</Text>;
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
@@ -353,6 +374,12 @@ export default function JobDetailScreen({ route }: any) {
               <Text style={styles.priceValue}>₹{job.additionalCharges}</Text>
             </View>
           )}
+          {job.pendingCharges > 0 && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Pending Approval</Text>
+              <Text style={styles.priceValue}>₹{job.pendingCharges}</Text>
+            </View>
+          )}
           <View style={styles.divider} />
           <View style={styles.priceRow}>
             <Text style={styles.totalLabel}>Total</Text>
@@ -364,6 +391,53 @@ export default function JobDetailScreen({ route }: any) {
       <View style={styles.section}>{renderActionButtons()}</View>
 
       <View style={styles.bottomSpacer} />
+
+      <Modal
+        visible={chargeModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setChargeModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Request Additional Charge</Text>
+            <Text style={styles.modalHint}>The customer must approve this before it is added to the bill.</Text>
+            <Text style={styles.fieldLabel}>Amount (₹)</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={chargeAmount}
+              onChangeText={setChargeAmount}
+              keyboardType="number-pad"
+              placeholder="e.g. 250"
+              placeholderTextColor={Colors.textSecondary}
+            />
+            <Text style={styles.fieldLabel}>Description</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalTextArea]}
+              value={chargeDescription}
+              onChangeText={setChargeDescription}
+              placeholder="What is this charge for? (min 5 characters)"
+              placeholderTextColor={Colors.textSecondary}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancel]}
+                onPress={() => setChargeModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalSubmit]}
+                onPress={handleSubmitCharge}
+                disabled={isPending}
+              >
+                <Text style={styles.modalSubmitText}>{isPending ? "Sending..." : "Send Request"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -613,5 +687,73 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: Spacing.xl,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  modalTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: "700",
+    color: Colors.text,
+  },
+  modalHint: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  fieldLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: "600",
+    color: Colors.text,
+    marginTop: Spacing.sm,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    padding: Spacing.md,
+    fontSize: FontSize.md,
+    color: Colors.text,
+    backgroundColor: Colors.white,
+  },
+  modalTextArea: {
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalCancel: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalCancelText: {
+    fontSize: FontSize.md,
+    fontWeight: "600",
+    color: Colors.text,
+  },
+  modalSubmit: {
+    backgroundColor: Colors.primary,
+  },
+  modalSubmitText: {
+    fontSize: FontSize.md,
+    fontWeight: "600",
+    color: Colors.white,
   },
 });

@@ -29,16 +29,16 @@ export default function DisputeScreen({ route, navigation }: any) {
   const { jobId } = route.params;
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
-  const [evidence, setEvidence] = useState<string[]>([]);
+  const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const handleAddPhoto = async () => {
     const uri = await pickAndUploadImage();
-    if (uri) setEvidence((prev) => [...prev, uri]);
+    if (uri) setImages((prev) => [...prev, uri]);
   };
 
   const handleRemovePhoto = (index: number) => {
-    setEvidence((prev) => prev.filter((_, i) => i !== index));
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
@@ -52,7 +52,7 @@ export default function DisputeScreen({ route, navigation }: any) {
     }
     setSubmitting(true);
     try {
-      await raiseDispute({ jobId, reason, description: description.trim(), evidence });
+      await raiseDispute({ jobId, reason, description: description.trim(), images });
       Alert.alert("Dispute Raised", "We will review your case within 24 hours.", [
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
@@ -94,14 +94,14 @@ export default function DisputeScreen({ route, navigation }: any) {
           textAlignVertical="top"
         />
 
-        <Text style={[styles.label, { marginTop: Spacing.lg }]}>Evidence (optional)</Text>
+        <Text style={[styles.label, { marginTop: Spacing.lg }]}>Images (optional)</Text>
         <TouchableOpacity style={styles.photoBtn} onPress={handleAddPhoto}>
           <Ionicons name="camera-outline" size={24} color={Colors.primary} />
           <Text style={styles.photoBtnText}>Add Photo</Text>
         </TouchableOpacity>
-        {evidence.length > 0 && (
+        {images.length > 0 && (
           <View style={styles.photoGrid}>
-            {evidence.map((uri, index) => (
+            {images.map((uri, index) => (
               <View key={index} style={styles.photoContainer}>
                 <Image source={{ uri }} style={styles.photo} />
                 <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemovePhoto(index)}>

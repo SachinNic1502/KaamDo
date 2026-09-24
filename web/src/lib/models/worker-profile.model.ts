@@ -67,10 +67,15 @@ const WorkerProfileSchema = new Schema<IWorkerProfileDocument>(
   { timestamps: true }
 );
 
-WorkerProfileSchema.index({ userId: 1 });
+WorkerProfileSchema.index({ userId: 1 }, { unique: true });
 WorkerProfileSchema.index({ status: 1 });
 WorkerProfileSchema.index({ skills: 1 });
 WorkerProfileSchema.index({ serviceAreas: 1 });
+WorkerProfileSchema.index({ isOnline: 1 });
+WorkerProfileSchema.index({ rating: -1 });
+WorkerProfileSchema.index({ totalJobs: -1 });
+WorkerProfileSchema.index({ createdAt: -1 });
+WorkerProfileSchema.index({ skills: 1, serviceAreas: 1, isOnline: 1 }); // Compound index for worker matching
 
 export default mongoose.models.WorkerProfile ||
   mongoose.model<IWorkerProfileDocument>("WorkerProfile", WorkerProfileSchema);

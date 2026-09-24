@@ -11,21 +11,22 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, FontSize } from "../../constants";
-import { useJobDetail, useUpdateJob, useCreatePayment } from "../../hooks/use-api";
-import { initiatePayment } from "../../services/payment";
+import { useJobDetail, useUpdateJob } from "../../hooks/use-api";
+import { initiatePayment, PaymentProvider } from "../../services/payment";
 
 const JobDetailScreen = ({ route }: any) => {
   const jobId = route.params.jobId;
   const { data, isLoading } = useJobDetail(jobId);
-  const { mutate: updateJob, isPending: isUpdating } = useUpdateJob();
-  const { mutate: createPayment, isPending: isPaying } = useCreatePayment();
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const { mutate: mutateJob, isPending: isUpdating } = useUpdateJob();
+  const updateJob = (updates: { jobId: string; [key: string]: unknown }) => mutateJob(updates, { onError: error => Alert.alert("Job update failed", error.message) });
+  const [paying, setPaying] = useState(false);
+  const [otp, setOtp] = useState(["", "", "", ""]);
 
   const jobData = data?.data;
   const job = jobData
     ? {
         jobNumber: jobData.jobNumber,
-        status: jobData.status as "pending" | "in-progress" | "completed" | "cancelled",
+        status: jobData.status,
         category: jobData.categoryId?.name || "",
         description: jobData.description,
         worker: {
@@ -43,12 +44,12 @@ const JobDetailScreen = ({ route }: any) => {
           base: jobData.estimatedPrice || 0,
           additionalCharges:
             jobData.additionalCharges?.reduce(
-              (sum: number, c: any) => sum + (c.amount || c),
+              (sum: number, c: any) => sum + (c.status === "approved" ? c.amount : 0),
               0
             ) || 0,
           materials:
             jobData.materials?.reduce(
-              (sum: number, m: any) => sum + (m.cost || m),
+              (sum: number, m: any) => sum + (m.totalPrice || 0),
               0
             ) || 0,
           total:
@@ -56,11 +57,11 @@ const JobDetailScreen = ({ route }: any) => {
               jobData.estimatedPrice ||
               0) +
             (jobData.additionalCharges?.reduce(
-              (sum: number, c: any) => sum + (c.amount || c),
+              (sum: number, c: any) => sum + (c.status === "approved" ? c.amount : 0),
               0
             ) || 0) +
             (jobData.materials?.reduce(
-              (sum: number, m: any) => sum + (m.cost || m),
+              (sum: number, m: any) => sum + (m.totalPrice || 0),
               0
             ) || 0),
         },
@@ -107,18 +108,34 @@ const JobDetailScreen = ({ route }: any) => {
 
   const handleVerifyOtp = () => {
     const otpString = otp.join("");
-    updateJob({ jobId, status: "work_started", startOtp: otpString });
+    updateJob({ jobId, status: "completed", completionOtp: otpString });
+  };
+
+  const pendingCharges: { _id?: string; description?: string; amount?: number }[] = Array.isArray(jobData?.additionalCharges)
+    ? jobData.additionalCharges.filter((c: any) => c?.status === "pending")
+    : [];
+
+  const handleChargeDecision = (chargeId: string | undefined, decision: "approved" | "rejected") => {
+    if (!chargeId) return;
+    updateJob({ jobId, chargeDecision: { chargeId, decision } });
   };
 
   const handleMarkComplete = () => {
-    updateJob({ jobId, status: "completed" });
+    updateJob({ jobId, status: "completed", completionOtp: jobData?.completionOtp });
   };
 
-  const handlePayNow = async () => {
-    if (!job || !jobData) return;
+  const handlePayNow = () => Alert.alert("Choose payment gateway", "Select a gateway for this job.", [
+    { text: "Razorpay", onPress: () => void payWith("razorpay") },
+    { text: "Cashfree", onPress: () => void payWith("cashfree") },
+    { text: "Cancel", style: "cancel" },
+  ]);
+  const payWith = async (provider: PaymentProvider) => {
+    if (!job || !jobData || paying) return;
+    setPaying(true);
     try {
-      const result = await initiatePayment({
+      await initiatePayment({
         jobId,
+        provider,
         amount: job.price.total,
         customerName: jobData.customerId?.name || "",
         customerPhone: jobData.customerId?.phone || "",
@@ -127,6 +144,8 @@ const JobDetailScreen = ({ route }: any) => {
       Alert.alert("Payment Successful", "Your payment has been processed.");
     } catch (error: any) {
       Alert.alert("Payment Failed", error?.message || "Something went wrong.");
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -296,6 +315,41 @@ const JobDetailScreen = ({ route }: any) => {
             </View>
           </View>
 
+          {pendingCharges.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="alert-circle-outline" size={20} color={Colors.primary} />
+                <Text style={styles.sectionTitle}>Charges Awaiting Approval</Text>
+              </View>
+              <View style={styles.sectionContent}>
+                {pendingCharges.map((charge, index) => (
+                  <View key={charge._id ?? index} style={styles.chargeRow}>
+                    <View style={styles.chargeInfo}>
+                      <Text style={styles.chargeDescription}>{charge.description || "Additional charge"}</Text>
+                      <Text style={styles.chargeAmount}>₹{charge.amount ?? 0}</Text>
+                    </View>
+                    <View style={styles.chargeActions}>
+                      <TouchableOpacity
+                        style={[styles.chargeButton, styles.chargeApprove]}
+                        onPress={() => handleChargeDecision(charge._id, "approved")}
+                        disabled={isUpdating}
+                      >
+                        <Text style={styles.chargeButtonText}>Approve</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.chargeButton, styles.chargeReject]}
+                        onPress={() => handleChargeDecision(charge._id, "rejected")}
+                        disabled={isUpdating}
+                      >
+                        <Text style={styles.chargeButtonText}>Reject</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="time-outline" size={20} color={Colors.primary} />
@@ -329,7 +383,9 @@ const JobDetailScreen = ({ route }: any) => {
             </View>
           </View>
 
-          {job.status === "in-progress" && (
+          {jobData?.startOtp && <Text style={styles.otpDescription}>Share this start code with your worker when they arrive: {jobData.startOtp}</Text>}
+          {jobData?.completionOtp && <Text style={styles.otpDescription}>Completion code: {jobData.completionOtp}</Text>}
+          {job.status === "completion_requested" && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Ionicons
@@ -341,7 +397,7 @@ const JobDetailScreen = ({ route }: any) => {
               </View>
               <View style={styles.sectionContent}>
                 <Text style={styles.otpDescription}>
-                  Enter the 6-digit OTP to verify work start/completion
+                  Enter your 4-digit completion code to confirm the work
                 </Text>
                 <View style={styles.otpContainer}>
                   {otp.map((digit, index) => (
@@ -370,7 +426,7 @@ const JobDetailScreen = ({ route }: any) => {
           )}
 
           <View style={styles.actionsContainer}>
-            {job.status === "in-progress" && (
+            {job.status === "completion_requested" && (
               <>
                 <TouchableOpacity style={styles.primaryButton}>
                   <Ionicons name="checkmark-circle-outline" size={20} color={Colors.white} />
@@ -387,10 +443,10 @@ const JobDetailScreen = ({ route }: any) => {
               </>
             )}
             {job.status === "completed" && (
-              <TouchableOpacity style={styles.primaryButton} onPress={handlePayNow} disabled={isPaying}>
+              <TouchableOpacity style={styles.primaryButton} onPress={handlePayNow} disabled={paying}>
                 <Ionicons name="card-outline" size={20} color={Colors.white} />
                 <Text style={styles.primaryButtonText}>
-                  {isPaying ? "Processing..." : `Pay Now ₹${job.price.total}`}
+                  {paying ? "Processing..." : `Pay Now ₹${job.price.total}`}
                 </Text>
               </TouchableOpacity>
             )}
@@ -573,6 +629,49 @@ const styles = StyleSheet.create({
     fontSize: FontSize.lg,
     color: Colors.primary,
     fontWeight: "700",
+  },
+  chargeRow: {
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  chargeInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  chargeDescription: {
+    flex: 1,
+    fontSize: FontSize.md,
+    color: Colors.textPrimary,
+    marginRight: Spacing.sm,
+  },
+  chargeAmount: {
+    fontSize: FontSize.md,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  chargeActions: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  chargeButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  chargeApprove: {
+    backgroundColor: Colors.success,
+  },
+  chargeReject: {
+    backgroundColor: Colors.error,
+  },
+  chargeButtonText: {
+    color: Colors.white,
+    fontSize: FontSize.sm,
+    fontWeight: "600",
   },
   timelineStep: {
     flexDirection: "row",

@@ -18,8 +18,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
+  const [store] = useState(makeStore);
   return (
-    <Provider store={makeStore()}>
+    <Provider store={store}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </Provider>
   );

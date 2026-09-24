@@ -4,6 +4,9 @@ import { Dispute, Job, User } from "@/lib/models";
 import { successResponse, errorResponse, paginatedResponse } from "@/lib/api-response";
 import { requireAuth } from "@/lib/auth-middleware";
 import { createDisputeSchema, paginationSchema } from "@/lib/validations";
+import { handleApiError } from "@/lib/api-error";
+import { resourceScope } from "@/lib/resource-policy";
+import { objectIdSchema } from "@/lib/security-schemas";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,12 +17,7 @@ export async function GET(request: NextRequest) {
     const query = Object.fromEntries(searchParams);
     const { page, limit, search, status } = paginationSchema.parse(query);
 
-    const filter: Record<string, unknown> = {};
-
-    if (authUser.role !== "admin") {
-      const user = await User.findOne({ phone: authUser.phone });
-      if (user) filter.raisedBy = user._id;
-    }
+    const filter: Record<string, unknown> = resourceScope(authUser, "disputes");
 
     if (search) {
       filter.$or = [
@@ -40,8 +38,7 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(disputes, total, page, limit);
   } catch (error) {
-    console.error("Get disputes error:", error);
-    return errorResponse("Internal server error", 500);
+    return handleApiError(error);
   }
 }
 
@@ -56,7 +53,8 @@ export async function POST(request: NextRequest) {
     const user = await User.findOne({ phone: authUser.phone });
     if (!user) return errorResponse("User not found", 404);
 
-    const job = await Job.findById(validated.jobId);
+    objectIdSchema.parse(validated.jobId);
+    const job = await Job.findOne({ _id: validated.jobId, ...resourceScope(authUser, "jobs") });
     if (!job) return errorResponse("Job not found", 404);
 
     const dispute = await Dispute.create({
@@ -73,8 +71,7 @@ export async function POST(request: NextRequest) {
 
     return successResponse(dispute, "Dispute raised", 201);
   } catch (error) {
-    console.error("Create dispute error:", error);
-    return errorResponse("Internal server error", 500);
+    return handleApiError(error);
   }
 }
 
@@ -107,7 +104,6 @@ export async function PATCH(request: NextRequest) {
 
     return successResponse(dispute, "Dispute updated");
   } catch (error) {
-    console.error("Update dispute error:", error);
-    return errorResponse("Internal server error", 500);
+    return handleApiError(error);
   }
 }

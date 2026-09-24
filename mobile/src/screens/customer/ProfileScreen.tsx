@@ -29,7 +29,7 @@ export default function ProfileScreen() {
   const user = useSelector((state: any) => state.auth.user);
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
+    Alert.alert('Logout', 'Sign out here and revoke your sessions on all devices?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',

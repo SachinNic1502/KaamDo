@@ -5,6 +5,7 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   message?: string;
   error?: string;
+  code?: string;
   pagination?: {
     page: number;
     limit: number;
@@ -20,9 +21,9 @@ export function successResponse<T>(data: T, message?: string, status = 200) {
   );
 }
 
-export function errorResponse(error: string, status = 400) {
+export function errorResponse(error: string, status = 400, code?: string) {
   return NextResponse.json<ApiResponse>(
-    { success: false, error },
+    { success: false, error, message: error, code },
     { status }
   );
 }
