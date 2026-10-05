@@ -87,7 +87,7 @@ export const createJobSchema = z.object({
   description: z.string().min(10),
   images: z.array(z.string().url()).optional(),
   address: z.object({
-    label: z.string(),
+    label: z.string().optional(),
     address: z.string().min(5),
     city: z.string(),
     state: z.string().trim().min(1),
@@ -97,7 +97,7 @@ export const createJobSchema = z.object({
   }),
   scheduledDate: z.string().datetime(),
   scheduledTime: z.string().optional(),
-  pricingModel: z.enum(["fixed", "visit", "hourly", "daily", "quotation"]),
+  pricingModel: z.enum(["fixed", "visit", "hourly", "daily", "quotation"]).optional(),
   estimatedPrice: z.number().positive().optional(),
 });
 

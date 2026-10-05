@@ -6,6 +6,7 @@ import { getAuthUser, requireAuth } from "@/lib/auth-middleware";
 import { workerProfileSchema } from "@/lib/validations";
 import { handleApiError } from "@/lib/api-error";
 import { escapeSearch, workerSearchSchema, workerSelfUpdateSchema, workerAdminUpdateSchema } from "@/lib/security-schemas";
+import { RealtimeService } from "@/lib/services/realtime";
 
 const publicFields = "_id userId skills experience serviceAreas hourlyRate dailyRate status isOnline rating totalJobs";
 const privateFields = "bankDetails documents";
@@ -119,20 +120,65 @@ export async function PATCH(request: NextRequest) {
     const targetId = authUser.role === "admin" ? workerId : authUser.userId;
     if (!targetId) return errorResponse("workerId is required for admin");
 
-    const profile = await WorkerProfile.findOneAndUpdate(
-      { userId: targetId },
-      { 
-        $set: updates,
-        $setOnInsert: {
-          skills: ["General Services"],
-          serviceAreas: ["Local"],
-          status: updates.status || "draft",
-        },
-      },
-      { new: true, upsert: true, runValidators: true }
-    ).select(publicFields).populate("userId", "name avatar");
+    const existingProfile = await WorkerProfile.findOne({
+      $or: [{ userId: targetId }, { _id: targetId }],
+    });
+
+    if (!existingProfile) {
+      if (authUser.role === "admin") {
+        return errorResponse("Worker profile not found", 404);
+      }
+      // Create new profile for worker
+      const newProfile = await WorkerProfile.create({
+        userId: authUser.userId,
+        skills: ["General Services"],
+        serviceAreas: ["Local"],
+        status: updates.status || "draft",
+        ...updates,
+      });
+      return successResponse(newProfile, "Worker profile created");
+    }
+
+    // Synchronize kyc object if status is modified
+    const setUpdates: Record<string, unknown> = { ...updates };
+    if (updates.status === "verified") {
+      setUpdates["kyc.status"] = "verified";
+      setUpdates["kyc.verifiedAt"] = new Date();
+      setUpdates["kyc.reviewedBy"] = authUser.userId;
+      setUpdates["status"] = "verified";
+    } else if (updates.status === "rejected") {
+      setUpdates["kyc.status"] = "rejected";
+      setUpdates["kyc.rejectionReason"] = updates.rejectionReason || "Verification failed";
+      setUpdates["kyc.reviewedBy"] = authUser.userId;
+      setUpdates["status"] = "rejected";
+    }
+
+    const profile = await WorkerProfile.findByIdAndUpdate(
+      existingProfile._id,
+      { $set: setUpdates },
+      { new: true, runValidators: true }
+    ).select(`${publicFields} ${privateFields}`).populate("userId", "name avatar");
 
     if (!profile) return errorResponse("Worker profile not found", 404);
+
+    // Notify worker if admin updated their status
+    if (authUser.role === "admin" && profile.userId?._id) {
+      try {
+        const title = updates.status === "verified" ? "KYC Approved! 🎉" : "KYC Update Required";
+        const message = updates.status === "verified"
+          ? "Your identity verification is complete. You can now accept leads and earn!"
+          : `KYC was rejected: ${updates.rejectionReason || "Please re-upload clearer documents."}`;
+
+        await RealtimeService.sendRoleNotification({
+          role: "worker",
+          title,
+          message,
+          data: { status: updates.status, workerId: profile.userId._id.toString() },
+        });
+      } catch (e) {
+        console.warn("Could not emit worker notification:", e);
+      }
+    }
 
     return successResponse(profile, "Worker profile updated");
   } catch (error) {

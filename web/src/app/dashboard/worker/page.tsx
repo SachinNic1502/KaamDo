@@ -286,18 +286,35 @@ function WorkerDashboardContent() {
                     </button>
                   )}
 
-                  <button
-                    onClick={() => {
-                      setSelectedJob(job);
-                      setOtpType("start");
-                      setOtpCode("");
-                      setActionError("");
-                    }}
-                    className="px-3.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-md transition flex items-center gap-1"
-                  >
-                    <Play className="w-3.5 h-3.5 text-[#0456D3]" />
-                    <span>Verify Start OTP</span>
-                  </button>
+                  {job.status === "arrived" && (
+                    <button
+                      onClick={() => {
+                        setSelectedJob(job);
+                        setOtpType("start");
+                        setOtpCode("");
+                        setActionError("");
+                      }}
+                      className="px-3.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-md transition flex items-center gap-1"
+                    >
+                      <Play className="w-3.5 h-3.5 text-[#0456D3]" />
+                      <span>Verify Start OTP</span>
+                    </button>
+                  )}
+
+                  {["work_started", "in_progress", "completion_requested"].includes(job.status) && (
+                    <button
+                      onClick={() => {
+                        setSelectedJob(job);
+                        setOtpType("complete");
+                        setOtpCode("");
+                        setActionError("");
+                      }}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md transition flex items-center gap-1"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Complete with OTP</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

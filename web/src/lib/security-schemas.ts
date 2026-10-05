@@ -30,6 +30,7 @@ export const workerSelfUpdateSchema = workerProfileSchema.partial().extend({
 export const workerAdminUpdateSchema = workerSelfUpdateSchema.extend({
   workerId: objectIdSchema,
   status: z.enum(["draft", "submitted", "under_review", "verified", "rejected", "suspended"]).optional(),
+  rejectionReason: z.string().trim().max(500).optional(),
 }).strict();
 
 export const userSelfUpdateSchema = z.object({

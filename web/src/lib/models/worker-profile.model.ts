@@ -17,7 +17,20 @@ export interface IWorkerProfileDocument extends Document {
     bankName?: string;
     accountNumber?: string;
     ifsc?: string;
+    ifscCode?: string;
     upi?: string;
+  };
+  kyc?: {
+    aadhaarNumber?: string;
+    panNumber?: string;
+    aadhaarFrontUrl?: string;
+    panCardUrl?: string;
+    tradeCertificateUrl?: string;
+    status: "not_submitted" | "pending" | "verified" | "rejected";
+    submittedAt?: Date;
+    verifiedAt?: Date;
+    rejectionReason?: string;
+    reviewedBy?: mongoose.Types.ObjectId;
   };
   documents: {
     identity?: string;
@@ -65,7 +78,24 @@ const WorkerProfileSchema = new Schema<IWorkerProfileDocument>(
       bankName: String,
       accountNumber: String,
       ifsc: String,
+      ifscCode: String,
       upi: String,
+    },
+    kyc: {
+      aadhaarNumber: String,
+      panNumber: String,
+      aadhaarFrontUrl: String,
+      panCardUrl: String,
+      tradeCertificateUrl: String,
+      status: {
+        type: String,
+        enum: ["not_submitted", "pending", "verified", "rejected"],
+        default: "not_submitted",
+      },
+      submittedAt: Date,
+      verifiedAt: Date,
+      rejectionReason: String,
+      reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
     },
     documents: {
       identity: String,

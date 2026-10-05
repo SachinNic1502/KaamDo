@@ -20,30 +20,56 @@ export async function GET(request: NextRequest) {
     const query = Object.fromEntries(searchParams);
     const { page, limit, search, status } = paginationSchema.parse(query);
 
-    const filter: Record<string, unknown> = resourceScope(authUser, "jobs");
-
     if (query.jobId) {
       const jobId = objectIdSchema.parse(query.jobId);
-      const job = await Job.findOne({ _id: jobId, ...filter })
-        .select(authUser.role === "customer" ? "-__v" : "-startOtp -completionOtp -__v")
-        .populate("customerId", "name phone").populate("workerId", "name phone")
-        .populate("categoryId", "name slug").lean();
+      const job = await Job.findById(jobId)
+        .populate("customerId", "name phone avatar")
+        .populate("workerId", "name phone avatar")
+        .populate("categoryId", "name slug")
+        .lean();
       if (!job) return errorResponse("Job not found", 404);
-      return successResponse(job);
+
+      const isCustomer = authUser.role === "customer" && String(job.customerId?._id || job.customerId) === authUser.userId;
+      const isWorker = authUser.role === "worker" && (String(job.workerId?._id || job.workerId) === authUser.userId || job.status === "searching");
+      const isAdmin = authUser.role === "admin";
+      if (!isCustomer && !isWorker && !isAdmin) return errorResponse("Forbidden", 403, "FORBIDDEN");
+
+      const result: any = { ...job };
+      if (!isCustomer && !isAdmin) {
+        delete result.startOtp;
+        delete result.completionOtp;
+      }
+      return successResponse(result);
     }
+
+    let filter: Record<string, unknown> = {};
+    if (authUser.role === "admin") {
+      filter = {};
+    } else if (authUser.role === "customer") {
+      filter = { customerId: authUser.userId };
+    } else if (authUser.role === "worker") {
+      if (status === "searching" || query.available === "true") {
+        filter = { status: "searching" };
+      } else {
+        filter = { workerId: authUser.userId };
+      }
+    } else if (authUser.role === "contractor") {
+      filter = { contractorId: authUser.userId };
+    }
+
     if (search) {
       filter.$or = [
         { jobNumber: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
       ];
     }
-    if (status) filter.status = status;
+    if (status && filter.status !== "searching") filter.status = status;
 
     const total = await Job.countDocuments(filter);
     const jobs = await Job.find(filter)
       .select("-startOtp -completionOtp")
-      .populate("customerId", "name phone")
-      .populate("workerId", "name phone")
+      .populate("customerId", "name phone avatar")
+      .populate("workerId", "name phone avatar")
       .populate("categoryId", "name slug")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
@@ -71,7 +97,10 @@ export async function POST(request: NextRequest) {
     const category = await ServiceCategory.findById(validated.categoryId);
     if (!category || !category.isActive) return errorResponse("Category not found", 404);
 
-    const subcategory = category.subcategories.find((item: { _id: unknown }) => String(item._id) === validated.subcategoryId);
+    const subcategory = category.subcategories.find(
+      (item: { _id?: unknown; slug?: string }) =>
+        String(item._id) === validated.subcategoryId || item.slug === validated.subcategoryId
+    );
     if (!subcategory || !subcategory.isActive) return errorResponse("Subcategory not found", 400);
     if (new Date(validated.scheduledDate).getTime() < Date.now()) return errorResponse("Choose a future date", 400);
     const jobNumber = generateJobNumber();
@@ -105,6 +134,33 @@ export async function POST(request: NextRequest) {
       startOtp,
     });
 
+    if (match) {
+      await RealtimeService.notifyWorkerAssigned({
+        jobId: job._id.toString(),
+        workerId: match.userId._id.toString(),
+        customerId: user._id.toString(),
+        jobDetails: {
+          jobNumber: job.jobNumber,
+          description: job.description,
+          category: category.name,
+          address: validated.address,
+        },
+      });
+    } else {
+      await RealtimeService.sendRoleNotification({
+        role: "worker",
+        type: "new_lead_available",
+        title: "New Job Lead Available",
+        message: `New ${category.name} request in ${validated.address.city}`,
+        data: {
+          jobId: job._id.toString(),
+          jobNumber: job.jobNumber,
+          category: category.name,
+          city: validated.address.city,
+        },
+      });
+    }
+
     return successResponse(
       {
         job,
@@ -129,8 +185,20 @@ export async function PATCH(request: NextRequest) {
     if (!jobId) return errorResponse("jobId is required");
 
     objectIdSchema.parse(jobId);
-    const job = await Job.findOne({ _id: jobId, ...resourceScope(authUser, "jobs") });
+    const job = await Job.findById(jobId);
     if (!job) return errorResponse("Job not found", 404);
+
+    const isCustomer = authUser.role === "customer" && String(job.customerId) === authUser.userId;
+    const isAssignedWorker = authUser.role === "worker" && String(job.workerId) === authUser.userId;
+    const isClaimingWorker =
+      authUser.role === "worker" &&
+      updates.status === "worker_accepted" &&
+      (job.status === "searching" || job.status === "worker_assigned");
+    const isAdmin = authUser.role === "admin";
+
+    if (!isCustomer && !isAssignedWorker && !isClaimingWorker && !isAdmin) {
+      return errorResponse("Forbidden", 403, "FORBIDDEN");
+    }
 
     const allowedFields = authUser.role === "admin"
       ? ["status", "workerId", "startOtp", "completionOtp", "additionalCharge", "chargeDecision", "materials", "rating", "review"]
@@ -140,13 +208,43 @@ export async function PATCH(request: NextRequest) {
     if (Object.keys(updates).some((key) => !allowedFields.includes(key))) {
       return errorResponse("Forbidden update fields", 403, "FORBIDDEN");
     }
-    if (authUser.role === "customer" && updates.status && !["cancelled", "completed"].includes(updates.status)) {
+    if (authUser.role === "customer" && updates.status && !["cancelled", "completed", "rework_requested", "paid"].includes(updates.status)) {
       return errorResponse("Forbidden", 403, "FORBIDDEN");
     }
 
     if (updates.status) {
       const validated = updateJobStatusSchema.parse({ status: updates.status });
       assertJobTransition(job.status, validated.status, authUser.role);
+
+      if (validated.status === "worker_accepted") {
+        if (!job.workerId || job.status === "searching") {
+          job.workerId = authUser.userId as any;
+        }
+        if (!job.startOtp) {
+          job.startOtp = generateOTP();
+        }
+        await RealtimeService.notifyWorkerAccepted({
+          jobId: job._id.toString(),
+          workerId: authUser.userId,
+          customerId: job.customerId.toString(),
+        });
+      }
+
+      if (validated.status === "on_the_way") {
+        await RealtimeService.notifyWorkerOnTheWay({
+          jobId: job._id.toString(),
+          workerId: (job.workerId || authUser.userId).toString(),
+          customerId: job.customerId.toString(),
+        });
+      }
+
+      if (validated.status === "arrived") {
+        await RealtimeService.notifyWorkerArrived({
+          jobId: job._id.toString(),
+          workerId: (job.workerId || authUser.userId).toString(),
+          customerId: job.customerId.toString(),
+        });
+      }
 
       if (validated.status === "work_started") {
         if ((job.startOtpFailures ?? 0) >= 5) return errorResponse("Start code locked. Contact support.", 429, "OTP_RATE_LIMITED");
@@ -157,6 +255,20 @@ export async function PATCH(request: NextRequest) {
         job.startTime = new Date();
         job.startOtp = undefined;
         if (!job.completionOtp) job.completionOtp = generateOTP();
+        await RealtimeService.notifyWorkStarted({
+          jobId: job._id.toString(),
+          workerId: (job.workerId || authUser.userId).toString(),
+          customerId: job.customerId.toString(),
+        });
+      }
+
+      if (validated.status === "completion_requested") {
+        if (!job.completionOtp) job.completionOtp = generateOTP();
+        await RealtimeService.notifyWorkCompleted({
+          jobId: job._id.toString(),
+          workerId: (job.workerId || authUser.userId).toString(),
+          customerId: job.customerId.toString(),
+        });
       }
 
       if (validated.status === "completed") {
@@ -166,9 +278,24 @@ export async function PATCH(request: NextRequest) {
         job.endTime = new Date();
         job.completionOtp = undefined;
         if (job.pricingModel === "fixed" || job.pricingModel === "visit") job.finalPrice = job.estimatedPrice;
+        await RealtimeService.broadcastJobUpdate({
+          jobId: job._id.toString(),
+          status: "completed",
+          customerId: job.customerId.toString(),
+          workerId: job.workerId?.toString(),
+        });
       }
 
-      if (validated.status === "completion_requested" && !job.completionOtp) job.completionOtp = generateOTP();
+      if (validated.status === "cancelled") {
+        job.cancelledBy = authUser.userId as any;
+        await RealtimeService.broadcastJobUpdate({
+          jobId: job._id.toString(),
+          status: "cancelled",
+          customerId: job.customerId.toString(),
+          workerId: job.workerId?.toString(),
+        });
+      }
+
       job.status = validated.status;
     }
 
@@ -241,8 +368,10 @@ export async function PATCH(request: NextRequest) {
     await job.save();
 
     const result = job.toObject();
-    delete result.startOtp;
-    delete result.completionOtp;
+    if (authUser.role !== "customer" && authUser.role !== "admin") {
+      delete result.startOtp;
+      delete result.completionOtp;
+    }
     return successResponse(result, "Job updated");
   } catch (error) {
     return handleApiError(error);

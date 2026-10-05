@@ -317,7 +317,7 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
               Share this code with your technician once they arrive at your location:
             </Text>
             <View style={styles.otpNumberBox}>
-              <Text style={styles.otpNumber}>{job.startOtp || "4829"}</Text>
+              <Text style={styles.otpNumber}>{job.startOtp || "••••"}</Text>
             </View>
           </Card>
         )}
@@ -332,7 +332,7 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
               Only share this code when you have inspected and confirmed the work is complete:
             </Text>
             <View style={styles.otpNumberBox}>
-              <Text style={styles.otpNumber}>{job.completionOtp || "9154"}</Text>
+              <Text style={styles.otpNumber}>{job.completionOtp || "••••"}</Text>
             </View>
           </Card>
         )}

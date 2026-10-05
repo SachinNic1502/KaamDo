@@ -13,7 +13,11 @@ export function handleApiError(error: unknown) {
     return errorResponse(error.message, error.status, error.code);
   }
   if (error instanceof Error && error.name === "VersionError") return errorResponse("Job changed. Refresh and retry.", 409, "CONFLICT");
-  if (error instanceof ZodError || error instanceof SyntaxError) {
+  if (error instanceof ZodError) {
+    const detail = error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    return errorResponse(`Invalid request: ${detail}`, 400, "INVALID_REQUEST");
+  }
+  if (error instanceof SyntaxError) {
     return errorResponse("Invalid request", 400, "INVALID_REQUEST");
   }
   return errorResponse("Internal server error", 500, "INTERNAL_ERROR");

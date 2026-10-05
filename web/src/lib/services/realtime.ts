@@ -1,5 +1,6 @@
 import { getSocketServer } from "../socket/server";
 import { AuditLogger } from "./audit-logger";
+import { sendPushNotificationToUser } from "./push-notifications";
 
 /**
  * Real-time Service
@@ -81,6 +82,11 @@ export class RealtimeService {
     };
 
     socketServer.sendNotificationToUser(params.userId, notification);
+
+    // Also dispatch Expo Push Notification for background/closed app delivery
+    sendPushNotificationToUser(params.userId, params.title, params.message, params.data).catch((err) => {
+      console.warn("Push notification dispatch failed:", err?.message || err);
+    });
 
     // Log notification
     await AuditLogger.logUserAction({
