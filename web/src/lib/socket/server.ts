@@ -115,6 +115,28 @@ export class SocketServer {
         const { user } = await this.authorize(socket, id);
         await this.deliverJob(id, "user-typing", { jobId: id, userId: user.userId, isTyping: (data as Record<string, unknown>).isTyping === true }, socket.id);
       }));
+      for (const event of ["worker-location-update", "worker_location_update", "location-update"]) {
+        socket.on(event, safe(async data => {
+          if (!data || typeof data !== "object") throw new Error("Invalid location data");
+          const input = data as Record<string, unknown>;
+          const id = this.jobId(input);
+          const { user } = await this.authorize(socket, id);
+          if (user.role !== "worker") throw new Error("Only workers can broadcast location");
+          const latitude = Number(input.latitude);
+          const longitude = Number(input.longitude);
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            await this.deliverJob(id, "worker-location-update", {
+              jobId: id,
+              workerId: user.userId,
+              latitude,
+              longitude,
+              heading: input.heading,
+              speed: input.speed,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }));
+      }
     });
   }
   private jobId(data: unknown): string {

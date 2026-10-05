@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../utils/constants";
-import { useJobDetail, useUpdateJob } from "../../../hooks/use-api";
+import { useJobDetail, useUpdateJob, useCancelJob } from "../../../hooks/use-api";
+import { connectSocket, onWorkerLocationUpdate } from "../../../services/chat";
 import { initiatePayment } from "../../../services/payment";
 import {
   AppHeader,
@@ -39,10 +40,36 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
   const jobId = route.params?.jobId;
   const { data, isLoading, refetch } = useJobDetail(jobId);
   const { mutate: mutateJob, isPending: isUpdating } = useUpdateJob();
+  const { mutate: cancelBooking, isPending: isCancelling } = useCancelJob();
   const [paying, setPaying] = useState(false);
+  const [workerGps, setWorkerGps] = useState<{
+    lat: number;
+    lng: number;
+    heading?: number;
+    updatedAt?: string;
+  } | null>(null);
   const toast = useToast();
 
   const job = data?.data;
+
+  useEffect(() => {
+    if (job?.status === "on_the_way" || job?.status === "worker_assigned") {
+      connectSocket();
+      const unsub = onWorkerLocationUpdate((locData) => {
+        if (locData.coordinates && locData.coordinates.length >= 2) {
+          setWorkerGps({
+            lng: locData.coordinates[0],
+            lat: locData.coordinates[1],
+            heading: locData.heading,
+            updatedAt: locData.updatedAt,
+          });
+        }
+      });
+      return () => {
+        unsub?.();
+      };
+    }
+  }, [job?.status]);
 
   if (isLoading || !job) {
     return (
@@ -98,23 +125,32 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
   };
 
   const handleCancel = () => {
+    const feeNotice =
+      job.status === "on_the_way"
+        ? "Technician is en-route. A visit/transit fee of ₹150 will apply."
+        : job.status === "worker_assigned"
+        ? "Technician has been reserved. A dispatch reservation fee of ₹50 will apply."
+        : "Cancellation is free of charge.";
+
     Alert.alert(
       "Cancel Booking",
-      "Are you sure you want to cancel this booking? This action cannot be undone.",
+      `Are you sure you want to cancel this booking?\n\n${feeNotice}`,
       [
         { text: "Keep Booking", style: "cancel" },
         {
-          text: "Cancel Booking",
+          text: "Confirm Cancellation",
           style: "destructive",
           onPress: () => {
-            mutateJob(
-              { jobId: job._id, status: "cancelled" },
+            cancelBooking(
+              { jobId: job._id, reason: "Cancelled by customer from mobile app" },
               {
-                onSuccess: () => {
-                  toast.success("Booking Cancelled", "Your booking has been cancelled.");
+                onSuccess: (res: any) => {
+                  const feeMsg = res?.data?.cancellationFee ? ` (Fee: ₹${res.data.cancellationFee})` : "";
+                  toast.success("Booking Cancelled", `Your booking has been cancelled.${feeMsg}`);
                   refetch();
                 },
-                onError: (err) => toast.error("Cancellation Failed", err.message),
+                onError: (err: any) =>
+                  toast.error("Cancellation Failed", err.message || "Failed to cancel booking"),
               }
             );
           },
@@ -386,6 +422,49 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
           </Card>
         )}
 
+        {/* Live GPS Telemetry Card (when technician is on the way or arrived) */}
+        {worker && (currentStatus === "on_the_way" || currentStatus === "arrived") && (
+          <Card style={styles.statusCard}>
+            <View style={styles.liveBeaconRow}>
+              <View
+                style={[
+                  styles.livePulseDot,
+                  currentStatus === "arrived" && styles.livePulseDotArrived,
+                ]}
+              />
+              <Text style={styles.liveTrackingTitle}>
+                {currentStatus === "arrived"
+                  ? "Technician Arrived at Location"
+                  : "Technician En Route • Live GPS Active"}
+              </Text>
+            </View>
+
+            <View style={styles.telemetryStatsRow}>
+              <View style={styles.telemetryStatBox}>
+                <Ionicons name="navigate-circle-outline" size={20} color={Colors.primary} />
+                <View>
+                  <Text style={styles.statSubText}>Live GPS Telemetry</Text>
+                  <Text style={styles.statMainText}>
+                    {workerGps
+                      ? `${workerGps.lat.toFixed(4)}, ${workerGps.lng.toFixed(4)}`
+                      : "Streaming active via radar"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.telemetryStatBox}>
+                <Ionicons name="time-outline" size={20} color={Colors.accent} />
+                <View>
+                  <Text style={styles.statSubText}>Arrival Status</Text>
+                  <Text style={styles.statMainText}>
+                    {currentStatus === "arrived" ? "At Doorstep" : "On the way"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+        )}
+
         {/* Pending Additional Charges */}
         {pendingCharges.length > 0 && (
           <Card style={styles.pendingChargeCard}>
@@ -504,15 +583,18 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
           )}
         </Card>
 
-        {/* Cancel Action (Only when not started) */}
-        {["searching", "worker_assigned"].includes(currentStatus) && (
+        {/* Cancel Action (Only when not started per policy) */}
+        {["searching", "worker_assigned", "on_the_way"].includes(currentStatus) && (
           <TouchableOpacity
             style={styles.cancelBtn}
             onPress={handleCancel}
+            disabled={isCancelling}
             activeOpacity={0.7}
           >
             <Ionicons name="close-circle-outline" size={18} color={Colors.error} />
-            <Text style={styles.cancelBtnText}>Cancel This Booking</Text>
+            <Text style={styles.cancelBtnText}>
+              {isCancelling ? "Cancelling Booking..." : "Cancel This Booking"}
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>

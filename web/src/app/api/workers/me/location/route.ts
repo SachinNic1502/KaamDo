@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { WorkerProfile, User } from "@/lib/models";
+import { WorkerProfile, User, Job } from "@/lib/models";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { requireAuth } from "@/lib/auth-middleware";
 import { handleApiError } from "@/lib/api-error";
+import { RealtimeService } from "@/lib/services/realtime";
 import { z } from "zod";
 
 const locationUpdateSchema = z.object({
@@ -89,6 +90,30 @@ export async function PATCH(request: NextRequest) {
     }
 
     await profile.save();
+
+    // Broadcast live location to any active en-route jobs
+    try {
+      const activeJobs = await Job.find({
+        workerId: authUser.userId,
+        status: { $in: ["worker_accepted", "on_the_way"] },
+      }).select("_id customerId").lean();
+
+      for (const job of activeJobs) {
+        await RealtimeService.broadcastJobUpdate({
+          jobId: job._id.toString(),
+          status: "location_update",
+          customerId: job.customerId.toString(),
+          workerId: authUser.userId,
+          updateData: {
+            latitude: validated.latitude,
+            longitude: validated.longitude,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("Could not broadcast worker location to active jobs:", e);
+    }
 
     return successResponse({
       latitude: validated.latitude,

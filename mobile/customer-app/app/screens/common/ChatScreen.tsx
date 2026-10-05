@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
@@ -32,6 +33,7 @@ import * as SecureStore from "../../../services/storage";
 interface DisplayMessage {
   id: string;
   text: string;
+  mediaUrl?: string;
   sent: boolean;
   time: string;
   read: boolean;
@@ -56,6 +58,7 @@ export default function CustomerChatScreen({ route, navigation }: any) {
           const history: DisplayMessage[] = res.data.map((m: any) => ({
             id: m._id || String(Date.now()),
             text: m.message || m.text || "",
+            mediaUrl: m.mediaUrl || m.attachments?.[0]?.url || (typeof m.media === "string" ? m.media : undefined),
             sent: (m.senderId?._id || m.senderId) === user?._id,
             time: new Date(m.createdAt || Date.now()).toLocaleTimeString("en-IN", {
               hour: "2-digit",
@@ -82,6 +85,7 @@ export default function CustomerChatScreen({ route, navigation }: any) {
           {
             id: msg._id || String(Date.now()),
             text: msg.message || msg.text || "",
+            mediaUrl: msg.mediaUrl || msg.attachments?.[0]?.url,
             sent: isFromMe,
             time: new Date(msg.createdAt || Date.now()).toLocaleTimeString("en-IN", {
               hour: "2-digit",
@@ -163,14 +167,23 @@ export default function CustomerChatScreen({ route, navigation }: any) {
                 item.sent ? styles.sentBubble : styles.receivedBubble,
               ]}
             >
-              <Text
-                style={[
-                  styles.messageText,
-                  item.sent ? styles.sentText : styles.receivedText,
-                ]}
-              >
-                {item.text}
-              </Text>
+              {item.mediaUrl && (
+                <Image
+                  source={{ uri: item.mediaUrl }}
+                  style={{ width: 220, height: 160, borderRadius: 8, marginBottom: 6 }}
+                  resizeMode="cover"
+                />
+              )}
+              {item.text ? (
+                <Text
+                  style={[
+                    styles.messageText,
+                    item.sent ? styles.sentText : styles.receivedText,
+                  ]}
+                >
+                  {item.text}
+                </Text>
+              ) : null}
               <Text
                 style={[
                   styles.messageTime,

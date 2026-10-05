@@ -99,3 +99,11 @@ export function onJobStatusUpdate(callback: (data: { jobId: string; status: stri
     socket?.off("job-status-update", callback);
   };
 }
+
+export function emitWorkerLocation(data: {
+  jobId: string;
+  coordinates: [number, number];
+  heading?: number;
+}) {
+  socket?.emit("worker-location-update", data);
+}

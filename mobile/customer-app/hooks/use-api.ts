@@ -74,6 +74,17 @@ export function useUpdateJob() {
   });
 }
 
+export function useCancelJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ jobId, reason }: { jobId: string; reason?: string }) => {
+      const token = await getToken();
+      return api.post<ApiResponse<any>>(`/api/jobs/${jobId}/cancel`, { reason }, token);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
+  });
+}
+
 // Workers
 export function useWorkers(params: Record<string, any> = {}) {
   return useQuery({

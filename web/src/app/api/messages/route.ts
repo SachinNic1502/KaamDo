@@ -136,6 +136,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Also dispatch Expo push notification for background delivery
+    try {
+      const { sendPushNotificationToUser } = await import("@/lib/services/push-notifications");
+      await sendPushNotificationToUser(
+        receiverId.toString(),
+        `Message from ${(populatedMessage?.senderId as any)?.name || "KaamDo User"}`,
+        messageType === "image" ? "📷 Sent an image" : message,
+        { chatId, jobId: chat.jobId?.toString() }
+      );
+    } catch (e) {
+      console.warn("Could not dispatch chat push:", e);
+    }
+
     return successResponse(populatedMessage, "Message sent", 201);
   } catch (error) {
     console.error("Send message error:", error);
