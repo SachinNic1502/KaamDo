@@ -151,7 +151,7 @@ function UsersContent() {
                   </TableHeader>
                   <TableBody>
                     {users.map((user: Record<string, unknown>) => (
-                      <TableRow key={user.id as string}>
+                      <TableRow key={((user._id || user.id) as string)}>
                         <TableCell>
                           <div>
                             <p className="font-medium">{user.name as string}</p>

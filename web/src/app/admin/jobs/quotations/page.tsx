@@ -99,10 +99,10 @@ export default function QuotationsPage() {
                 </div>
               ) : (
                 quotations.map((job: any) => (
-                  <div key={job.id} className="border rounded-lg p-4">
+                  <div key={job._id || job.id} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{job.id}</span>
+                        <span className="font-medium">{job.jobNumber || job._id || job.id}</span>
                         <Badge className={statusColors[job.status] ?? "bg-gray-100 text-gray-800"}>
                           {job.status?.replace("_", " ")}
                         </Badge>

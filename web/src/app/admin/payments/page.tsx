@@ -196,8 +196,8 @@ export default function PaymentsPage() {
                   </TableRow>
                 ) : (
                   displayData.map((txn: any) => (
-                    <TableRow key={txn.id}>
-                      <TableCell className="font-medium">{txn.id}</TableCell>
+                    <TableRow key={txn._id || txn.id || txn.paymentId}>
+                      <TableCell className="font-medium">{txn.orderId || txn.paymentId || txn._id || txn.id}</TableCell>
                       <TableCell>{txn.jobId}</TableCell>
                       <TableCell>{txn.customer}</TableCell>
                       <TableCell>{txn.worker}</TableCell>
@@ -254,8 +254,8 @@ export default function PaymentsPage() {
                   </TableRow>
                 ) : (
                   displayData.map((payout: any) => (
-                    <TableRow key={payout.id}>
-                      <TableCell className="font-medium">{payout.id}</TableCell>
+                    <TableRow key={payout._id || payout.id || payout.payoutId}>
+                      <TableCell className="font-medium">{payout.payoutId || payout._id || payout.id}</TableCell>
                       <TableCell>{payout.worker}</TableCell>
                       <TableCell className="font-medium">₹{payout.amount}</TableCell>
                       <TableCell>{payout.account}</TableCell>

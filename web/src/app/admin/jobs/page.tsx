@@ -125,51 +125,73 @@ export default function JobsPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    jobs.map((job: any) => (
-                      <TableRow key={job.id}>
-                        <TableCell className="font-medium">{job.id}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p>{job.customer}</p>
-                            <p className="text-xs text-muted-foreground">{job.location}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{job.worker ?? "Pending"}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p>{job.service}</p>
-                            <p className="text-xs text-muted-foreground">{job.category}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">{job.amount}</TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[job.status] ?? "bg-gray-100 text-gray-800"}>
-                            {job.status.replace("_", " ")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{job.date}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Eye className="mr-2 h-4 w-4" />View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <MessageSquare className="mr-2 h-4 w-4" />Contact
-                              </DropdownMenuItem>
-                              {job.status === "disputed" && (
-                                <DropdownMenuItem>
-                                  <Ban className="mr-2 h-4 w-4" />Resolve Dispute
+                    jobs.map((job: any) => {
+                      const rowKey = job._id || job.id || job.jobNumber;
+                      const customerName = job.customerId?.name || job.customer || "Customer";
+                      const customerLoc = job.address?.city || job.location || "Local";
+                      const workerName = job.workerId?.name || job.worker || "Pending";
+                      const serviceTitle = job.categoryId?.name || job.service || "Service";
+                      const serviceDesc = job.description
+                        ? (job.description.length > 32 ? job.description.slice(0, 32) + "..." : job.description)
+                        : job.category || "";
+                      const formattedAmount = `₹${(job.finalPrice ?? job.estimatedPrice ?? job.amount ?? 0).toLocaleString("en-IN")}`;
+                      const formattedDate = job.createdAt
+                        ? new Date(job.createdAt).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : job.date || "-";
+
+                      return (
+                        <TableRow key={rowKey}>
+                          <TableCell className="font-medium text-xs">
+                            {job.jobNumber || job._id?.slice(-8) || job.id}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{customerName}</p>
+                              <p className="text-xs text-muted-foreground">{customerLoc}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <span className={workerName === "Pending" ? "text-amber-600 font-medium" : "font-medium"}>
+                              {workerName}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-sm font-medium">{serviceTitle}</p>
+                              <p className="text-xs text-muted-foreground">{serviceDesc}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold text-sm">{formattedAmount}</TableCell>
+                          <TableCell>
+                            <Badge className={statusColors[job.status] ?? "bg-gray-100 text-gray-800"}>
+                              {job.status ? job.status.replace(/_/g, " ") : "Unknown"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{formattedDate}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => window.open(`/jobs/${job._id || job.id}`, "_blank")}>
+                                  <Eye className="mr-2 h-4 w-4" />View Details
                                 </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                                {job.status === "disputed" && (
+                                  <DropdownMenuItem onClick={() => window.location.href = "/admin/disputes"}>
+                                    <Ban className="mr-2 h-4 w-4" />Resolve Dispute
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
