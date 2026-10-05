@@ -43,9 +43,11 @@ export async function GET(request: NextRequest) {
     }
 
     let filter: Record<string, unknown> = {};
-    if (authUser.role === "admin") {
+    if (query.customerId) {
+      filter = { customerId: query.customerId };
+    } else if (authUser.role === "admin") {
       filter = {};
-    } else if (authUser.role === "customer") {
+    } else if (authUser.role === "customer" || query.asCustomer === "true") {
       filter = { customerId: authUser.userId };
     } else if (authUser.role === "worker") {
       if (status === "searching" || query.available === "true") {
