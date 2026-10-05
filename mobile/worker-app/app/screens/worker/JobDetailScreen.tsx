@@ -13,13 +13,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../constants";
 import { StatusBadge, PrimaryButton, SecondaryButton, Input, Modal } from "../../../components/ui";
-import { useJobDetail, useUpdateJobStatus, useAddAdditionalCharge } from "../../../hooks/use-api";
+import { useJobDetail, useUpdateJobStatus, useAddAdditionalCharge, useAddMaterial } from "../../../hooks/use-api";
 
 export const JobDetailScreen = ({ route, navigation }: any) => {
   const { jobId } = route.params || {};
   const { data: job, isLoading, refetch } = useJobDetail(jobId);
   const updateStatusMutation = useUpdateJobStatus();
   const addChargeMutation = useAddAdditionalCharge();
+  const addMaterialMutation = useAddMaterial();
 
   // OTP Modals
   const [startOtpModal, setStartOtpModal] = useState(false);
@@ -27,10 +28,16 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
   const [completeOtpModal, setCompleteOtpModal] = useState(false);
   const [completeOtp, setCompleteOtp] = useState("");
 
-  // Additional Charge Modal
+  // Additional Charge Modal (Extra Labor)
   const [chargeModal, setChargeModal] = useState(false);
   const [chargeAmount, setChargeAmount] = useState("");
   const [chargeReason, setChargeReason] = useState("");
+
+  // Parts / Material Modal
+  const [materialModal, setMaterialModal] = useState(false);
+  const [materialName, setMaterialName] = useState("");
+  const [materialQty, setMaterialQty] = useState("1");
+  const [materialUnitPrice, setMaterialUnitPrice] = useState("");
 
   if (isLoading || !job) {
     return (
@@ -148,6 +155,30 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
     }
   };
 
+  const handleAddMaterial = async () => {
+    const qty = parseInt(materialQty, 10) || 1;
+    const price = parseFloat(materialUnitPrice);
+    if (!materialName.trim() || isNaN(price) || price <= 0) {
+      Alert.alert("Invalid Part / Material", "Please enter a valid part name and unit price.");
+      return;
+    }
+    try {
+      await addMaterialMutation.mutateAsync({
+        jobId: job._id,
+        name: materialName.trim(),
+        quantity: qty,
+        unitPrice: price,
+      });
+      setMaterialModal(false);
+      setMaterialName("");
+      setMaterialQty("1");
+      setMaterialUnitPrice("");
+      Alert.alert("Part Added", `${materialName} (Qty: ${qty}) added to job invoice.`);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to add material.");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Top Header */}
@@ -216,16 +247,21 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
               </Text>
               <View style={{ flexDirection: "row", gap: Spacing.sm, marginTop: Spacing.sm }}>
                 <SecondaryButton
-                  title="+ Extra Charge"
+                  title="+ Extra Labor"
                   onPress={() => setChargeModal(true)}
                   style={{ flex: 1 }}
                 />
-                <PrimaryButton
-                  title="Finish & Verify OTP"
-                  onPress={() => setCompleteOtpModal(true)}
-                  style={{ flex: 1.5 }}
+                <SecondaryButton
+                  title="+ Add Part"
+                  onPress={() => setMaterialModal(true)}
+                  style={{ flex: 1 }}
                 />
               </View>
+              <PrimaryButton
+                title="Finish & Verify OTP"
+                onPress={() => setCompleteOtpModal(true)}
+                style={{ marginTop: Spacing.sm }}
+              />
             </>
           ) : (
             <>
@@ -318,11 +354,30 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
           {/* Additional Charges if any */}
           {job.additionalCharges && job.additionalCharges.length > 0 && (
             <View style={styles.extraChargesList}>
-              <Text style={styles.extraChargesTitle}>Extra Approved Charges:</Text>
+              <Text style={styles.extraChargesTitle}>Extra Charges (Customer Approval):</Text>
               {job.additionalCharges.map((c: any, idx: number) => (
                 <View key={idx} style={styles.extraChargeItem}>
-                  <Text style={styles.extraChargeReason}>{c.reason}</Text>
+                  <Text style={styles.extraChargeReason}>
+                    {c.reason} ({c.status})
+                  </Text>
                   <Text style={styles.extraChargeAmt}>+₹{c.amount}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Installed Parts & Materials if any */}
+          {job.materials && job.materials.length > 0 && (
+            <View style={styles.extraChargesList}>
+              <Text style={styles.extraChargesTitle}>Installed Parts & Materials:</Text>
+              {job.materials.map((m: any, idx: number) => (
+                <View key={idx} style={styles.extraChargeItem}>
+                  <Text style={styles.extraChargeReason}>
+                    {m.name} (x{m.quantity})
+                  </Text>
+                  <Text style={styles.extraChargeAmt}>
+                    +₹{m.totalPrice || (m.quantity * m.unitPrice)}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -383,13 +438,16 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
           </View>
         </Modal>
 
-        {/* Additional Charge Modal */}
+        {/* Additional Charge Modal (Extra Labor) */}
         <Modal
           visible={chargeModal}
           onClose={() => setChargeModal(false)}
-          title="Add Material / Extra Scope"
+          title="Add Extra Labor Charge"
         >
           <View style={styles.modalBody}>
+            <Text style={styles.modalSub}>
+              Itemize unforeseen extra labor required. The customer will be prompted to approve or reject this charge.
+            </Text>
             <Input
               label="Additional Amount (₹)"
               placeholder="e.g. 350"
@@ -398,15 +456,60 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
               keyboardType="numeric"
             />
             <Input
-              label="Item / Reason Description"
-              placeholder="e.g. Extra wire 5m + switch replacement"
+              label="Labor Reason Description"
+              placeholder="e.g. High-ceiling ladder work / Heavy wall chiseling"
               value={chargeReason}
               onChangeText={setChargeReason}
             />
             <PrimaryButton
-              title="Add to Bill"
+              title="Request Customer Approval"
               onPress={handleAddCharge}
               loading={addChargeMutation.isPending}
+              style={{ marginTop: Spacing.md }}
+            />
+          </View>
+        </Modal>
+
+        {/* Add Part / Material Modal */}
+        <Modal
+          visible={materialModal}
+          onClose={() => setMaterialModal(false)}
+          title="Add Part / Hardware"
+        >
+          <View style={styles.modalBody}>
+            <Text style={styles.modalSub}>
+              Itemize replacement parts or materials purchased for this service.
+            </Text>
+            <Input
+              label="Part / Hardware Name"
+              placeholder="e.g. 32A MCB, Brass Ball Valve, 5m Wire"
+              value={materialName}
+              onChangeText={setMaterialName}
+            />
+            <View style={{ flexDirection: "row", gap: Spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  label="Quantity"
+                  placeholder="1"
+                  value={materialQty}
+                  onChangeText={setMaterialQty}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={{ flex: 1.5 }}>
+                <Input
+                  label="Unit Price (₹)"
+                  placeholder="e.g. 250"
+                  value={materialUnitPrice}
+                  onChangeText={setMaterialUnitPrice}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <PrimaryButton
+              title="Add Part to Invoice"
+              onPress={handleAddMaterial}
+              loading={addMaterialMutation.isPending}
               style={{ marginTop: Spacing.md }}
             />
           </View>

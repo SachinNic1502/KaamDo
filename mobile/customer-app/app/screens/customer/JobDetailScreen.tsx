@@ -560,10 +560,26 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
           )}
 
           {materialsTotal > 0 && (
-            <View style={styles.invoiceRow}>
-              <Text style={styles.invoiceItem}>Materials & Hardware</Text>
-              <Text style={styles.invoiceItemVal}>₹{materialsTotal}</Text>
-            </View>
+            <>
+              <View style={styles.invoiceRow}>
+                <Text style={styles.invoiceItem}>Materials & Hardware</Text>
+                <Text style={styles.invoiceItemVal}>₹{materialsTotal}</Text>
+              </View>
+              {job.materials && job.materials.length > 0 && (
+                <View style={{ marginTop: 2, marginBottom: 6, paddingLeft: Spacing.sm }}>
+                  {job.materials.map((m: any, idx: number) => (
+                    <View key={idx} style={[styles.invoiceRow, { paddingVertical: 2 }]}>
+                      <Text style={[styles.invoiceItem, { fontSize: FontSize.xs, color: Colors.textMuted }]}>
+                        • {m.name} (x{m.quantity})
+                      </Text>
+                      <Text style={[styles.invoiceItemVal, { fontSize: FontSize.xs, color: Colors.textSecondary }]}>
+                        ₹{m.totalPrice || (m.quantity * m.unitPrice)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
           )}
 
           <View style={styles.divider} />

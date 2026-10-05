@@ -204,9 +204,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     const allowedFields = authUser.role === "admin"
-      ? ["status", "workerId", "startOtp", "completionOtp", "additionalCharge", "chargeDecision", "materials", "rating", "review"]
+      ? ["status", "workerId", "startOtp", "completionOtp", "additionalCharge", "chargeDecision", "materials", "material", "rating", "review"]
       : authUser.role === "worker"
-        ? ["status", "startOtp", "completionOtp", "additionalCharge", "materials"]
+        ? ["status", "startOtp", "completionOtp", "additionalCharge", "materials", "material"]
         : ["status", "completionOtp", "chargeDecision", "rating", "review"];
     if (Object.keys(updates).some((key) => !allowedFields.includes(key))) {
       return errorResponse("Forbidden update fields", 403, "FORBIDDEN");
@@ -326,7 +326,7 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    if ((updates.additionalCharge || updates.materials) && !["work_started", "in_progress"].includes(job.status)) return errorResponse("Job costs are locked", 409);
+    if ((updates.additionalCharge || updates.materials || updates.material) && !["work_started", "in_progress"].includes(job.status)) return errorResponse("Job costs are locked", 409);
     if (updates.additionalCharge) {
       job.additionalCharges.push({ ...updates.additionalCharge, status: "pending" });
     }
@@ -344,6 +344,13 @@ export async function PATCH(request: NextRequest) {
         return errorResponse("Charge has already been decided", 409, "INVALID_JOB_STATE");
       }
       charge.status = decision.decision;
+    }
+
+    if (updates.material) {
+      job.materials.push({
+        ...updates.material,
+        totalPrice: updates.material.quantity * updates.material.unitPrice,
+      });
     }
 
     if (updates.materials) {

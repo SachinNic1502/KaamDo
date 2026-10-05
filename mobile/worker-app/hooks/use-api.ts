@@ -128,6 +128,31 @@ export function useAddAdditionalCharge() {
   });
 }
 
+export function useAddMaterial() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      jobId,
+      name,
+      quantity,
+      unitPrice,
+    }: {
+      jobId: string;
+      name: string;
+      quantity: number;
+      unitPrice: number;
+    }) => {
+      return api.patch<ApiResponse<Job>>("/api/jobs", {
+        jobId,
+        material: { name, quantity, unitPrice },
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["job", variables.jobId] });
+    },
+  });
+}
+
 export function useWorkerEarnings() {
   return useQuery({
     queryKey: ["worker", "earnings"],
