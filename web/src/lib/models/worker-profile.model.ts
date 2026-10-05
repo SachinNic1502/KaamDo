@@ -13,6 +13,8 @@ export interface IWorkerProfileDocument extends Document {
   totalJobs: number;
   totalEarnings: number;
   bankDetails: {
+    accountHolderName?: string;
+    bankName?: string;
     accountNumber?: string;
     ifsc?: string;
     upi?: string;
@@ -27,6 +29,16 @@ export interface IWorkerProfileDocument extends Document {
     startTime: string;
     endTime: string;
   };
+  location?: {
+    type: string;
+    coordinates: [number, number];
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    lastUpdated?: Date;
+  };
+  serviceRadiusKm: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +61,8 @@ const WorkerProfileSchema = new Schema<IWorkerProfileDocument>(
     totalJobs: { type: Number, default: 0 },
     totalEarnings: { type: Number, default: 0 },
     bankDetails: {
+      accountHolderName: String,
+      bankName: String,
       accountNumber: String,
       ifsc: String,
       upi: String,
@@ -63,19 +77,31 @@ const WorkerProfileSchema = new Schema<IWorkerProfileDocument>(
       startTime: { type: String, default: "09:00" },
       endTime: { type: String, default: "18:00" },
     },
+    location: {
+      type: { type: String, default: "Point" },
+      coordinates: { type: [Number], default: [77.5946, 12.9716] },
+      address: String,
+      city: String,
+      state: String,
+      pincode: String,
+      lastUpdated: { type: Date, default: Date.now },
+    },
+    serviceRadiusKm: { type: Number, default: 15, min: 1, max: 100 },
   },
   { timestamps: true }
 );
 
 WorkerProfileSchema.index({ userId: 1 }, { unique: true });
+WorkerProfileSchema.index({ "location.coordinates": "2dsphere" });
 WorkerProfileSchema.index({ status: 1 });
 WorkerProfileSchema.index({ skills: 1 });
 WorkerProfileSchema.index({ serviceAreas: 1 });
 WorkerProfileSchema.index({ isOnline: 1 });
 WorkerProfileSchema.index({ rating: -1 });
 WorkerProfileSchema.index({ totalJobs: -1 });
-WorkerProfileSchema.index({ createdAt: -1 });
-WorkerProfileSchema.index({ skills: 1, serviceAreas: 1, isOnline: 1 }); // Compound index for worker matching
+WorkerProfileSchema.index({ status: 1, isOnline: 1 });
+WorkerProfileSchema.index({ skills: 1, isOnline: 1 });
+WorkerProfileSchema.index({ serviceAreas: 1, isOnline: 1 });
 
 export default mongoose.models.WorkerProfile ||
   mongoose.model<IWorkerProfileDocument>("WorkerProfile", WorkerProfileSchema);

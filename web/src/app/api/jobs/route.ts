@@ -156,6 +156,7 @@ export async function PATCH(request: NextRequest) {
         }
         job.startTime = new Date();
         job.startOtp = undefined;
+        if (!job.completionOtp) job.completionOtp = generateOTP();
       }
 
       if (validated.status === "completed") {
@@ -167,7 +168,7 @@ export async function PATCH(request: NextRequest) {
         if (job.pricingModel === "fixed" || job.pricingModel === "visit") job.finalPrice = job.estimatedPrice;
       }
 
-      if (validated.status === "completion_requested") job.completionOtp = generateOTP();
+      if (validated.status === "completion_requested" && !job.completionOtp) job.completionOtp = generateOTP();
       job.status = validated.status;
     }
 
@@ -227,6 +228,14 @@ export async function PATCH(request: NextRequest) {
       }
       job.rating = updates.rating;
       job.review = updates.review;
+
+      if (job.workerId) {
+        const ratedJobs = await Job.find({ workerId: job.workerId, _id: { $ne: job._id }, rating: { $gt: 0 } }).select("rating").lean();
+        const totalRatings = ratedJobs.length + 1;
+        const sumRatings = ratedJobs.reduce((sum: number, j: any) => sum + (j.rating || 0), 0) + updates.rating;
+        const avgRating = Math.round((sumRatings / totalRatings) * 10) / 10;
+        await WorkerProfile.updateOne({ userId: job.workerId }, { $set: { rating: avgRating } });
+      }
     }
 
     await job.save();

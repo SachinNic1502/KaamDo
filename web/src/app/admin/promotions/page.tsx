@@ -25,8 +25,10 @@ import { Search, Plus, Tag, Gift, TrendingUp } from "lucide-react";
 import { useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { usePromotions } from "@/hooks/use-api";
+import { useToast } from "@/components/ui/toast";
 
 export default function PromotionsPage() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const promoCodeInputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +40,7 @@ export default function PromotionsPage() {
   const startDateInputRef = useRef<HTMLInputElement>(null);
   const endDateInputRef = useRef<HTMLInputElement>(null);
 
-  const { data, isLoading } = usePromotions({ search: searchQuery || undefined, limit: 50 });
+  const { data, isLoading, refetch } = usePromotions({ search: searchQuery || undefined, limit: 50 });
   const promos = (data?.data ?? []) as Record<string, unknown>[];
 
   return (
@@ -112,7 +114,11 @@ export default function PromotionsPage() {
                   const endDate = endDateInputRef.current?.value || "";
                   
                   if (!code || !description || !value) {
-                    alert("Please fill in all required fields");
+                    toast({
+                      title: "Validation Error",
+                      description: "Please fill in all required fields.",
+                      type: "error",
+                    });
                     return;
                   }
                   
@@ -125,7 +131,23 @@ export default function PromotionsPage() {
                     maxDiscount,
                     startDate,
                     endDate,
-                  }).then(() => setIsDialogOpen(false)).catch(() => alert("Failed to create promo code"));
+                  })
+                    .then(() => {
+                      setIsDialogOpen(false);
+                      refetch();
+                      toast({
+                        title: "Promotion Created",
+                        description: `Promo code ${code} created successfully.`,
+                        type: "success",
+                      });
+                    })
+                    .catch((err: any) =>
+                      toast({
+                        title: "Failed",
+                        description: err?.message || "Failed to create promo code",
+                        type: "error",
+                      })
+                    );
                 }}
               >
                 Create Promo Code

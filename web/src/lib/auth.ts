@@ -4,7 +4,12 @@ import { randomInt } from "node:crypto";
 
 function requiredEnvironmentVariable(name: string): string {
   const value = process.env[name];
-  if (!value) throw new Error(`${name} environment variable is not set`);
+  if (!value) {
+    if (process.env.NODE_ENV !== "production") {
+      return `default_dev_${name.toLowerCase()}_minimum_32_chars_long`;
+    }
+    throw new Error(`${name} environment variable is not set`);
+  }
   return value;
 }
 

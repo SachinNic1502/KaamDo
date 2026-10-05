@@ -7,6 +7,7 @@ export interface IUserDocument extends Document {
   password?: string;
   role: "customer" | "worker" | "contractor" | "admin";
   avatar?: string;
+  pushToken?: string;
   isActive: boolean;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
@@ -36,6 +37,7 @@ const UserSchema = new Schema<IUserDocument>(
       default: "customer",
     },
     avatar: String,
+    pushToken: String,
     isActive: { type: Boolean, default: true },
     isEmailVerified: { type: Boolean, default: false },
     isPhoneVerified: { type: Boolean, default: false },

@@ -16,35 +16,37 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Edit, Trash2, Search, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useCategories, useCreateCategory } from "@/hooks/use-api";
+import { getStatusBadgeClass } from "@/lib/status-colors";
 
 export default function CategoriesPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [name, setName] = useState("")
+  const [slug, setSlug] = useState("")
+  const [description, setDescription] = useState("")
 
   const { data, isLoading, error } = useCategories({
     search: searchQuery || undefined,
-  });
+  })
 
-  const createCategory = useCreateCategory();
+  const createCategory = useCreateCategory()
 
-  const categories = data?.data || [];
+  const categories = data?.data || []
 
   const handleSubmit = () => {
     createCategory.mutate(
       { name, slug, description },
       {
         onSuccess: () => {
-          setName("");
-          setSlug("");
-          setDescription("");
-          setIsDialogOpen(false);
+          setName("")
+          setSlug("")
+          setDescription("")
+          setIsDialogOpen(false)
+          // toast success
         },
       }
-    );
-  };
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -57,8 +59,7 @@ export default function CategoriesPage() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger render={<Button />}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Category
+            <Plus className="mr-2 h-4 w-4" />Add Category
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -129,13 +130,25 @@ export default function CategoriesPage() {
               Failed to load categories. Please try again.
             </div>
           ) : categories.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              No categories found.
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                <svg className="h-8 w-8 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M21 7l-6-6m2 4l-6 6m2-6l6 6" />
+                </svg>
+              </div>
+              <p className="text-2xl font-medium text-muted-foreground">No categories found</p>
+              <p className="text-muted-foreground text-sm mt-2">Add your first service category to get started.</p>
+              <Button
+                onClick={() => setIsDialogOpen(true)}
+                className="mt-3 px-4 py-2 bg-primary text-white rounded"
+              >
+                Add First Category
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
               {categories.map((category: any) => (
-                <div key={category._id || category.id} className="border rounded-lg p-4">
+                <div key={category._id || category.id} className="border rounded-lg p-4 hover:border-primary transition-colors">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-semibold">{category.name}</h3>
@@ -180,5 +193,5 @@ export default function CategoriesPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

@@ -1,133 +1,163 @@
-# KaamDo
+# KaamDo — Full-Stack Marketplace Platform
 
-**Har Kaam, Sahi Insaan**
+**Har Kaam, Sahi Insaan**  
+Digital on-demand marketplace connecting customers with verified technicians, tradespeople, workers, and contractors.
 
-Digital marketplace connecting customers with verified technicians, workers, and contractors.
+---
+
+## Architecture Overview
+
+```
+                      +---------------------------------------+
+                      |   Cloudflare / Nginx (Port 80/443)    |
+                      +-------------------+-------------------+
+                                          |
+                +-------------------------+-------------------------+
+                |                                                   |
+    +-----------v-----------+                           +-----------v-----------+
+    |   Customer Web &      |                           |   Mobile Application  |
+    |   Admin Portal        |                           |   (Expo / React       |
+    |   (Next.js 16 Web)    |                           |    Native SDK 57)     |
+    +-----------+-----------+                           +-----------+-----------+
+                |                                                   |
+                +-------------------------+-------------------------+
+                                          | HTTP / REST & WebSockets
+                               +----------v----------+
+                               | Next.js API Routes  |
+                               | & Socket.IO Engine  |
+                               +----------+----------+
+                                          |
+                        +-----------------+-----------------+
+                        |                                   |
+              +---------v---------+               +---------v---------+
+              |  MongoDB Replica  |               |  Redis Cluster    |
+              |  Set (Documents)  |               |  (Rate Limit /    |
+              |                   |               |   Session / OTP)  |
+              +-------------------+               +-------------------+
+```
+
+---
 
 ## Tech Stack
 
-### Web (Admin Panel)
-- Next.js 16 + TypeScript
-- Tailwind CSS v4 + shadcn/ui
-- Redux Toolkit + TanStack Query
-- MongoDB/Mongoose
-- Zod + React Hook Form
+### Web Application (Customer Portal & Admin Panel)
+- **Framework:** Next.js 16 (App Router + Turbopack) & React 19
+- **Styling:** Tailwind CSS + shadcn/ui design system with Dark/Light modes
+- **State & Data Fetching:** TanStack React Query v5 & Redux Toolkit
+- **Real-Time Layer:** Socket.IO WebSocket server with MongoDB persistence
+- **Security:** Distributed Redis sliding-window rate limiting, HMAC upload signatures, role-based access containment (RBAC)
+- **Database:** MongoDB 7+ via Mongoose 9 with multi-document replica-set transactions
 
-### Mobile (Customer & Worker App)
-- React Native + Expo
-- TypeScript
-- Redux Toolkit + TanStack Query
-- React Navigation
-- Socket.IO (real-time chat)
-- Razorpay (payments)
-- Expo Notifications (push notifications)
-- React Native SVG (logo)
+### Mobile Application (Customer & Worker App)
+- **Framework:** Expo SDK 57 (React Native 0.86) + TypeScript
+- **Navigation:** React Navigation (Native Stack + Bottom Tabs)
+- **Authentication:** WhatsApp / SMS OTP verification with automatic retry challenge
+- **Worker Features:** 3-step KYC Wizard (Aadhaar/PAN/trade certs), live bank account configuration, GPS geofenced attendance, payout ledger
+- **Customer Features:** Service catalog search, direct technician booking, OTP work authorization, dispute filing, ratings & reviews
 
-## Features
+---
 
-### Customer
-- OTP-based phone authentication
-- Service category browsing
-- Worker search with filters
-- Job creation (multi-step form)
-- Real-time job tracking
-- In-app chat with workers
-- Razorpay payment integration
-- Rating & review system
-- Dispute resolution
-- Promo code support
+## Key Marketplace Modules
 
-### Worker
-- Online/offline toggle
-- Job request accept/reject
-- Navigation to customer location
-- OTP-based work start verification
-- Additional charge requests
-- Completion requests
-- Attendance tracking (GPS geofencing)
-- Earnings dashboard
-- Payout history
+1. **Customer Web Portal:**
+   - `/` — High-converting marketplace landing page with hero search, categories grid, testimonials, and trust guarantees.
+   - `/services` — Comprehensive service catalog with category filtering, trade chips, duration estimates, and upfront rates.
+   - `/workers/[id]` — Public profile of verified professionals displaying rating, reviews, skills, and booking CTA.
+   - `/book` & `/book/[subcategoryId]` — Multi-step booking wizard with slot selection, address geocoding, and OTP security.
+2. **Automated Tax Invoicing:**
+   - `GET /api/jobs/[id]/invoice` — GST-compliant tax invoice generation with SAC 9987 codes, 9% CGST + 9% SGST breakdown, and print-ready HTML (`?format=html`).
+3. **Dynamic Platform Settings:**
+   - `GET /api/settings` and `PATCH /api/settings` — Admin-configurable commission rules, cancellation fee policies, notification triggers, and covered cities.
+4. **Worker KYC & Banking:**
+   - Admin KYC verification portal (`/admin/kyc`) with pan/zoom document controls and live approve/reject actions.
+   - Live worker bank account matching, IFSC validation, and payout tracking via `/api/payouts`.
+5. **Real-time Engine:**
+   - Bi-directional Socket.IO chat rooms scoped strictly to active job participants.
+   - Worker assignment, arrival, and completion push notifications via Expo Server SDK.
 
-### Admin
-- Dashboard with analytics
-- User management (customers, workers, contractors)
-- Service category management
-- Job & project oversight
-- KYC approval workflow
-- Payment & commission tracking
-- Dispute resolution
-- Promotional campaigns
-- Attendance monitoring
+---
 
-## Project Structure
+## Quick Start (Local Development)
 
-```
-KaamDo/
-├── web/                    # Next.js admin panel
-│   ├── src/
-│   │   ├── app/           # Pages & API routes
-│   │   ├── components/    # UI components
-│   │   ├── hooks/         # React Query hooks
-│   │   ├── lib/           # Utilities, models, auth
-│   │   └── store/         # Redux store
-│   └── public/            # Static assets
-├── mobile/                 # React Native Expo app
-│   ├── src/
-│   │   ├── api/           # API client
-│   │   ├── components/    # Reusable components
-│   │   ├── constants/     # Colors, spacing, fonts
-│   │   ├── hooks/         # API hooks
-│   │   ├── navigation/    # React Navigation
-│   │   ├── screens/       # App screens
-│   │   ├── services/      # Business logic
-│   │   ├── store/         # Redux store
-│   │   └── types/         # TypeScript types
-│   └── assets/            # Logo, icons, splash
-└── docs/
-    └── project_prd.md     # Product Requirements
-```
+### Prerequisites
+- Node.js 20+
+- MongoDB 7.0+ (running locally or via Docker)
+- Redis 7.0+ (running locally or via Docker)
 
-## Getting Started
-
-### Web
+### 1. Web Application Setup
 ```bash
 cd web
+
+# 1. Install dependencies
 npm install
-cp .env.example .env.local  # Configure environment
+
+# 2. Configure environment variables
+cp .env.example .env.local
+
+# 3. Seed initial marketplace categories & settings
+npm run seed:marketplace
+
+# 4. Optional: Seed admin user
+ADMIN_PHONE=9876543210 ADMIN_PASSWORD=StrongPassword123! ADMIN_NAME="Super Admin" npm run seed:admin
+
+# 5. Start dev server
 npm run dev
 ```
+Open [http://localhost:3000](http://localhost:3000) to view the customer marketplace.  
+Visit [http://localhost:3000/admin](http://localhost:3000/admin) to view the administration dashboard.
 
-### Mobile
+### 2. Mobile Application Setup
 ```bash
 cd mobile
+
+# 1. Install dependencies
 npm install
+
+# 2. Start Expo development server
 npx expo start
 ```
+Scan the QR code with Expo Go (Android) or the iOS Camera app.
 
-## Environment Variables
+---
 
-### Web (.env.local)
+## Automated Verification & Testing
+
+```bash
+# Run 60-point security containment and route audit
+cd web
+npm run test:security
+
+# Typecheck both repositories
+npm run typecheck:security
+npx tsc --noEmit           # in web
+npx tsc --noEmit           # in mobile
+
+# Production Next.js build compilation
+npm run build
 ```
-MONGODB_URI=mongodb://localhost:27017/kaamdo
-JWT_SECRET=your-jwt-secret
-NEXT_PUBLIC_API_URL=http://localhost:3000
+
+---
+
+## Production Deployment with Docker Compose
+
+A complete production-ready container stack is pre-configured with Nginx reverse proxy, MongoDB replica set, and Redis:
+
+```bash
+# 1. Review environment variables in docker-compose.yml
+# 2. Build and launch all services
+docker-compose up -d --build
+
+# 3. Check container status
+docker-compose ps
+
+# 4. Check service health
+curl http://localhost/api/health
 ```
 
-### Mobile (.env)
-```
-EXPO_PUBLIC_API_URL=http://localhost:3000
-EXPO_PUBLIC_RAZORPAY_KEY_ID=rzp_test_xxx
-EXPO_PUBLIC_CLOUDINARY_URL=https://api.cloudinary.com/v1_xxx
-EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=kaamdo
-```
+The health check endpoint (`/api/health`) provides real-time database ping latency, process uptime, and memory statistics.
 
-## Brand
-
-- **Logo:** Stylized "K" mark with blue vertical bar, orange checkmark, blue bottom curve
-- **Primary:** #2563EB (Blue)
-- **Secondary:** #F97316 (Orange)
-- **Tagline:** Har Kaam, Sahi Insaan
+---
 
 ## License
 
-Private — KaamDo © 2026
+Private Proprietary — KaamDo Technologies Private Limited © 2026. All rights reserved.

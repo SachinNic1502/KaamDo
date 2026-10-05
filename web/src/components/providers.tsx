@@ -5,6 +5,8 @@ import { Provider } from "react-redux";
 import { makeStore } from "@/store";
 import { useState } from "react";
 
+import { Toaster } from "@/components/ui/toast";
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -21,7 +23,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [store] = useState(makeStore);
   return (
     <Provider store={store}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        <Toaster />
+      </QueryClientProvider>
     </Provider>
   );
 }

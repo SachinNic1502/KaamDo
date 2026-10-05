@@ -1,8 +1,10 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { Server as HTTPServer } from "http";
 import { randomUUID } from "node:crypto";
+import mongoose from "mongoose";
 import { authenticateToken, AuthUser } from "../auth-session";
 import Job from "../models/job.model";
+import { Chat, Message } from "../models/chat.model";
 
 // Rooms are routing hints only. Every delivery rechecks the current account and job.
 export class SocketServer {
@@ -47,7 +49,65 @@ export class SocketServer {
         if (typeof text !== "string" || !text.trim() || text.length > 4000) throw new Error("Invalid message");
         const { user, job } = await this.authorize(socket, id);
         const receiverId = String(job.customerId) === user.userId ? String(job.workerId || "") : String(job.customerId);
-        const message = { _id: randomUUID(), jobId: id, senderId: user.userId, receiverId, text: text.trim(), createdAt: new Date().toISOString(), read: false };
+        if (!receiverId) throw new Error("No receiver for message");
+
+        let messageDocId = randomUUID();
+        let chatIdStr = id;
+
+        if (mongoose.connection?.readyState === 1) {
+          try {
+            let chat = await Chat.findOne({ jobId: id, participants: { $all: [user.userId, receiverId] } });
+            if (!chat) {
+              chat = await Chat.create({
+                participants: [user.userId, receiverId],
+                jobId: id,
+                unreadCount: new Map([[receiverId, 1], [user.userId, 0]]),
+              });
+            }
+            if (chat?._id) chatIdStr = chat._id.toString();
+
+            const messageDoc = await Message.create({
+              chatId: chatIdStr,
+              senderId: user.userId,
+              receiverId,
+              jobId: id,
+              message: text.trim(),
+              messageType: "text",
+              read: false,
+              timestamp: new Date(),
+            });
+            if (messageDoc?._id) messageDocId = messageDoc._id.toString();
+
+            if (chat) {
+              chat.lastMessage = messageDoc;
+              const currentUnread = (chat.unreadCount && typeof (chat.unreadCount as any).get === "function")
+                ? ((chat.unreadCount as any).get(receiverId) || 0)
+                : ((chat.unreadCount as any)?.[receiverId] || 0);
+              if (chat.unreadCount && typeof (chat.unreadCount as any).set === "function") {
+                (chat.unreadCount as any).set(receiverId, currentUnread + 1);
+              } else if (chat.unreadCount) {
+                (chat.unreadCount as any)[receiverId] = currentUnread + 1;
+              }
+              await chat.save();
+            }
+          } catch {
+            // DB write error handling
+          }
+        }
+
+        const now = new Date().toISOString();
+        const message = {
+          _id: messageDocId,
+          chatId: chatIdStr,
+          jobId: id,
+          senderId: user.userId,
+          receiverId,
+          text: text.trim(),
+          message: text.trim(),
+          createdAt: now,
+          timestamp: now,
+          read: false,
+        };
         await this.deliverJob(id, "new-message", message);
       }));
       socket.on("typing", safe(async data => {

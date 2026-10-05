@@ -18,8 +18,9 @@ export const metadata: Metadata = {
   description:
     "Digital marketplace connecting customers with verified technicians, workers, and contractors",
   icons: {
-    icon: "/favicon.svg",
-    apple: "/logo/icon-circle.svg",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.png",
+    apple: "/logo/icon.png",
   },
 };
 

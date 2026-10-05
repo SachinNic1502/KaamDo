@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Eye, IndianRupee } from "lucide-react";
 import { useState } from "react";
 import { useProjects } from "@/hooks/use-api";
+import { useToast } from "@/components/ui/toast";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -17,13 +18,78 @@ const statusColors: Record<string, string> = {
 };
 
 export default function ProjectsPage() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [projectForm, setProjectForm] = useState({
+    title: "",
+    description: "",
+    totalAmount: "",
+    customerId: "",
+    contractorId: "",
+  });
 
-  const { data, isLoading, error } = useProjects({
+  const { data, isLoading, error, refetch } = useProjects({
     search: searchQuery || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectForm.title || !projectForm.totalAmount) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter project title and total amount.",
+        type: "error",
+      });
+      return;
+    }
+    try {
+      setCreating(true);
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: projectForm.title.trim(),
+          description: projectForm.description.trim(),
+          totalAmount: Number(projectForm.totalAmount) || 10000,
+          milestones: [
+            { title: "Initial Advance", amount: (Number(projectForm.totalAmount) || 10000) * 0.3, status: "pending" },
+            { title: "Mid-way Completion", amount: (Number(projectForm.totalAmount) || 10000) * 0.4, status: "pending" },
+            { title: "Final Handover", amount: (Number(projectForm.totalAmount) || 10000) * 0.3, status: "pending" },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        setShowCreateModal(false);
+        setProjectForm({ title: "", description: "", totalAmount: "", customerId: "", contractorId: "" });
+        refetch();
+        toast({
+          title: "Project Created",
+          description: "Project created successfully.",
+          type: "success",
+        });
+      } else {
+        const json = await res.json();
+        toast({
+          title: "Failed",
+          description: json.error || "Failed to create project.",
+          type: "error",
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Error creating project.",
+        type: "error",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const projects = data?.data ?? [];
   const pagination = data?.pagination;
@@ -41,7 +107,7 @@ export default function ProjectsPage() {
             <h1 className="text-2xl font-bold">Projects</h1>
             <p className="text-muted-foreground">Manage contractor projects and milestones</p>
           </div>
-          <Button>Create Project</Button>
+          <Button onClick={() => setShowCreateModal(true)}>Create Project</Button>
         </div>
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
@@ -59,7 +125,7 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-bold">Projects</h1>
           <p className="text-muted-foreground">Manage contractor projects and milestones</p>
         </div>
-        <Button>Create Project</Button>
+        <Button onClick={() => setShowCreateModal(true)}>Create Project</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -182,6 +248,49 @@ export default function ProjectsPage() {
           )}
         </CardContent>
       </Card>
+
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl border border-gray-200 dark:border-gray-800">
+            <h2 className="text-lg font-bold">Create New Contractor Project</h2>
+            <form onSubmit={handleCreateProject} className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500">Project Title</label>
+                <Input
+                  placeholder="e.g. Commercial Office Renovation"
+                  value={projectForm.title}
+                  onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500">Project Description</label>
+                <Input
+                  placeholder="Scope of work and requirements..."
+                  value={projectForm.description}
+                  onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500">Total Project Value (₹)</label>
+                <Input
+                  placeholder="50000"
+                  type="number"
+                  value={projectForm.totalAmount}
+                  onChange={(e) => setProjectForm({ ...projectForm, totalAmount: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="flex gap-2 pt-3 justify-end">
+                <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+                <Button type="submit" disabled={creating}>
+                  {creating ? "Creating..." : "Create Project"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

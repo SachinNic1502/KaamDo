@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { useJobs } from "@/hooks/use-api";
+import { useToast } from "@/components/ui/toast";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -17,6 +18,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function QuotationsPage() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
 
@@ -131,7 +133,53 @@ export default function QuotationsPage() {
                                 <span className="text-xs text-muted-foreground ml-2">Rating: {bid.rating}</span>
                               )}
                             </div>
-                            <span className="font-medium">Rs. {bid.amount ?? bid.quotedPrice}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold text-sm">₹{bid.amount ?? bid.quotedPrice}</span>
+                              {job.status === "searching" && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const token = (await import("@/lib/api-client")).getToken();
+                                      const res = await fetch("/api/jobs", {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                        },
+                                        body: JSON.stringify({
+                                          jobId: job._id || job.id,
+                                          workerId: bid.workerId || bid._id,
+                                        }),
+                                      });
+                                      if (res.ok) {
+                                        toast({
+                                          title: "Worker Assigned",
+                                          description: "Worker assigned successfully to job #" + (job.jobNumber || job._id),
+                                          type: "success",
+                                        });
+                                        setTimeout(() => window.location.reload(), 800);
+                                      } else {
+                                        const err = await res.json();
+                                        toast({
+                                          title: "Assignment Failed",
+                                          description: err.message || "Failed to assign worker",
+                                          type: "error",
+                                        });
+                                      }
+                                    } catch (e: any) {
+                                      toast({
+                                        title: "Error",
+                                        description: e.message || "Error assigning worker",
+                                        type: "error",
+                                      });
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90 font-medium"
+                                >
+                                  Accept & Assign
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))
                       ) : (

@@ -18,9 +18,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, MoreHorizontal, Eye, MessageSquare, Ban } from "lucide-react";
+import { Search, MoreHorizontal, Eye, MessageSquare, Ban, Plus, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useJobs } from "@/hooks/use-api";
+import { getStatusBadgeClass } from "@/lib/status-colors";
 
 const statusColors: Record<string, string> = {
   completed: "bg-green-100 text-green-800",
@@ -30,22 +31,22 @@ const statusColors: Record<string, string> = {
   disputed: "bg-red-100 text-red-800",
   cancelled: "bg-gray-100 text-gray-800",
   payment_pending: "bg-orange-100 text-orange-800",
-};
+}
 
 export default function JobsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
 
   const { data, isLoading, error } = useJobs({
     search: searchQuery || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
     page,
     limit: 10,
-  });
+  })
 
-  const jobs = data?.data ?? [];
-  const pagination = data?.pagination;
+  const jobs = data?.data ?? []
+  const pagination = data?.pagination
 
   return (
     <div className="space-y-6">
@@ -54,7 +55,9 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold">Jobs</h1>
           <p className="text-muted-foreground">Manage all jobs on the platform</p>
         </div>
-        <Button>Create Job</Button>
+        <Button className="flex items-center gap-2">
+          <Plus className="mr-2 h-4 w-4" />Create Job
+        </Button>
       </div>
 
       <Card>
@@ -66,8 +69,8 @@ export default function JobsPage() {
                 placeholder="Search jobs..."
                 value={searchQuery}
                 onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
+                  setSearchQuery(e.target.value)
+                  setPage(1)
                 }}
                 className="pl-10"
               />
@@ -75,8 +78,8 @@ export default function JobsPage() {
             <select
               value={statusFilter}
               onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
+                setStatusFilter(e.target.value)
+                setPage(1)
               }}
               className="px-3 py-2 border rounded-md text-sm"
             >
@@ -92,7 +95,8 @@ export default function JobsPage() {
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">Loading jobs...</p>
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="ml-2 text-muted-foreground">Loading jobs...</p>
             </div>
           ) : error ? (
             <div className="flex items-center justify-center py-12">
@@ -139,7 +143,7 @@ export default function JobsPage() {
                         </TableCell>
                         <TableCell className="font-medium">{job.amount}</TableCell>
                         <TableCell>
-                          <Badge className={statusColors[job.status]}>
+                          <Badge className={statusColors[job.status] ?? "bg-gray-100 text-gray-800"}>
                             {job.status.replace("_", " ")}
                           </Badge>
                         </TableCell>
@@ -151,17 +155,14 @@ export default function JobsPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
+                                <Eye className="mr-2 h-4 w-4" />View Details
                               </DropdownMenuItem>
                               <DropdownMenuItem>
-                                <MessageSquare className="mr-2 h-4 w-4" />
-                                Contact
+                                <MessageSquare className="mr-2 h-4 w-4" />Contact
                               </DropdownMenuItem>
                               {job.status === "disputed" && (
                                 <DropdownMenuItem>
-                                  <Ban className="mr-2 h-4 w-4" />
-                                  Resolve Dispute
+                                  <Ban className="mr-2 h-4 w-4" />Resolve Dispute
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
@@ -177,7 +178,7 @@ export default function JobsPage() {
                   <p className="text-sm text-muted-foreground">
                     Page {pagination.page} of {pagination.totalPages} ({pagination.total} jobs)
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -185,6 +186,7 @@ export default function JobsPage() {
                       onClick={() => setPage((p) => p - 1)}
                     >
                       Previous
+                      <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="outline"
@@ -193,6 +195,7 @@ export default function JobsPage() {
                       onClick={() => setPage((p) => p + 1)}
                     >
                       Next
+                      <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -202,5 +205,5 @@ export default function JobsPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

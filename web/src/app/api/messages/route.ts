@@ -17,25 +17,34 @@ export async function GET(request: NextRequest) {
     const query = Object.fromEntries(searchParams);
     const { page, limit } = paginationSchema.parse(query);
     const chatId = query.chatId ? objectIdSchema.parse(query.chatId) : undefined;
+    const jobId = query.jobId ? objectIdSchema.parse(query.jobId) : undefined;
     const unreadOnly = query.unreadOnly === "true" || query.unreadOnly === "1";
 
-    if (!chatId) {
-      return errorResponse("chatId is required", 400);
+    if (!chatId && !jobId) {
+      return errorResponse("chatId or jobId is required", 400);
     }
 
-    // Verify user is part of the chat
-    const chat = await Chat.findOne({
-      _id: chatId,
-      participants: authUser.userId,
-    });
+    const filter: Record<string, unknown> = {};
 
-    if (!chat) {
-      return errorResponse("Chat not found or access denied", 404);
+    if (chatId) {
+      const chat = await Chat.findOne({
+        _id: chatId,
+        participants: authUser.userId,
+      });
+      if (!chat) {
+        return errorResponse("Chat not found or access denied", 404);
+      }
+      filter.chatId = chatId;
+    } else if (jobId) {
+      const job = await Job.findOne({
+        _id: jobId,
+        $or: [{ customerId: authUser.userId }, { workerId: authUser.userId }],
+      });
+      if (!job && authUser.role !== "admin") {
+        return errorResponse("Job not found or access denied", 404);
+      }
+      filter.jobId = jobId;
     }
-
-    const filter: Record<string, unknown> = {
-      chatId,
-    };
 
     if (unreadOnly) {
       filter.receiverId = authUser.userId;

@@ -11,4 +11,5 @@ export { default as Dispute } from "./dispute.model";
 export { default as Commission } from "./commission.model";
 export { default as Attendance } from "./attendance.model";
 export { default as PromoCode } from "./promo-code.model";
+export { default as PlatformSetting } from "./platform-setting.model";
 export { Message, Chat } from "./chat.model";

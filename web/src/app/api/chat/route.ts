@@ -38,8 +38,16 @@ export async function GET(request: NextRequest) {
       .lean();
 
     // Calculate unread count for this user
+    const userIdStr = authUser.userId.toString();
     const chatsWithUnread = chats.map((chat: any) => {
-      const unreadCount = chat.unreadCount?.get(authUser.userId.toString()) || 0;
+      let unreadCount = 0;
+      if (chat.unreadCount) {
+        if (typeof chat.unreadCount.get === "function") {
+          unreadCount = chat.unreadCount.get(userIdStr) || 0;
+        } else {
+          unreadCount = chat.unreadCount[userIdStr] || 0;
+        }
+      }
       return {
         ...chat,
         unreadCount,

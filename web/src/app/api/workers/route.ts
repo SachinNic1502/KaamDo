@@ -121,8 +121,15 @@ export async function PATCH(request: NextRequest) {
 
     const profile = await WorkerProfile.findOneAndUpdate(
       { userId: targetId },
-      { $set: updates },
-      { new: true, runValidators: true }
+      { 
+        $set: updates,
+        $setOnInsert: {
+          skills: ["General Services"],
+          serviceAreas: ["Local"],
+          status: updates.status || "draft",
+        },
+      },
+      { new: true, upsert: true, runValidators: true }
     ).select(publicFields).populate("userId", "name avatar");
 
     if (!profile) return errorResponse("Worker profile not found", 404);

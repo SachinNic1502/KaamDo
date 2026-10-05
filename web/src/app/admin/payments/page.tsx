@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { usePayments } from "@/hooks/use-api";
+import { useToast } from "@/components/ui/toast";
+import { getStatusBadgeClass } from "@/lib/status-colors";
 
 const statusColors: Record<string, string> = {
   completed: "bg-green-100 text-green-800",
@@ -39,18 +41,19 @@ const statusColors: Record<string, string> = {
   refunded: "bg-gray-100 text-gray-800",
   paid: "bg-green-100 text-green-800",
   eligible: "bg-purple-100 text-purple-800",
-};
+}
 
 export default function PaymentsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("transactions");
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState("transactions")
 
   const { data, isLoading, error } = usePayments({
     search: searchQuery || undefined,
-  });
+  })
 
-  const payments = data?.data ?? [];
-  const pagination = data?.pagination;
+  const payments = data?.data ?? []
+  const pagination = data?.pagination
 
   const stats = {
     totalRevenue: payments
@@ -65,14 +68,14 @@ export default function PaymentsPage() {
     refunds: payments
       .filter((p: any) => p.status === "refunded")
       .reduce((sum: number, p: any) => sum + (p.amount || 0), 0),
-  };
+  }
 
   const transactions = payments.filter(
     (p: any) => p.type === "transaction" || !p.type
-  );
-  const payouts = payments.filter((p: any) => p.type === "payout");
+  )
+  const payouts = payments.filter((p: any) => p.type === "payout")
 
-  const displayData = activeTab === "transactions" ? transactions : payouts;
+  const displayData = activeTab === "transactions" ? transactions : payouts
 
   return (
     <div className="space-y-6">
@@ -135,21 +138,13 @@ export default function PaymentsPage() {
       <div className="flex gap-4 border-b">
         <button
           onClick={() => setActiveTab("transactions")}
-          className={`pb-2 px-4 text-sm font-medium ${
-            activeTab === "transactions"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground"
-          }`}
+          className={`pb-2 px-4 text-sm font-medium ${activeTab === "transactions" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
         >
           Transactions
         </button>
         <button
           onClick={() => setActiveTab("payouts")}
-          className={`pb-2 px-4 text-sm font-medium ${
-            activeTab === "payouts"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground"
-          }`}
+          className={`pb-2 px-4 text-sm font-medium ${activeTab === "payouts" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
         >
           Payouts
         </button>
@@ -224,12 +219,10 @@ export default function PaymentsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
+                              <Eye className="mr-2 h-4 w-4" />View Details
                             </DropdownMenuItem>
                             <DropdownMenuItem>
-                              <Download className="mr-2 h-4 w-4" />
-                              Download Invoice
+                              <Download className="mr-2 h-4 w-4" />Download Invoice
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -273,7 +266,17 @@ export default function PaymentsPage() {
                       </TableCell>
                       <TableCell>{payout.date}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            toast({
+                              title: "Payout Notice",
+                              description: "Process payout functionality coming soon.",
+                              type: "info",
+                            })
+                          }
+                        >
                           Process
                         </Button>
                       </TableCell>
@@ -293,5 +296,5 @@ export default function PaymentsPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

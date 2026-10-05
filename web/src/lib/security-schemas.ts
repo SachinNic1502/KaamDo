@@ -18,6 +18,7 @@ export const workerSearchSchema = z.object({
 export const workerSelfUpdateSchema = workerProfileSchema.partial().extend({
   workerId: objectIdSchema.optional(),
   isOnline: z.boolean().optional(),
+  status: z.enum(["draft", "submitted"]).optional(),
   address: z.string().min(5).optional(),
   documents: z.object({
     identity: z.string().optional(),

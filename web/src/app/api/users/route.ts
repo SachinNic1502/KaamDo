@@ -66,3 +66,20 @@ export async function PATCH(request: NextRequest) {
     return handleApiError(error);
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    await connectDB();
+    const authUser = await requireAuth(request);
+
+    const body = await request.json();
+    if (body.pushToken && typeof body.pushToken === "string") {
+      await User.findByIdAndUpdate(authUser.userId, { $set: { pushToken: body.pushToken } });
+      return successResponse({ registered: true }, "Push token registered successfully");
+    }
+
+    return errorResponse("Invalid body payload", 400);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}

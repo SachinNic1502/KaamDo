@@ -1,9 +1,11 @@
 import { z } from "zod";
 
-const normalizedPhone = z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid phone number").transform(value => {
-  const digits = value.replace(/^\+/, "");
+const normalizedPhone = z.string().transform(value => {
+  const digits = value.replace(/[\s\-\(\)\+]/g, "");
   return digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
-});
+}).pipe(
+  z.string().regex(/^[1-9]\d{9,13}$/, "Invalid phone number")
+);
 
 export const phoneSchema = z.object({
   phone: normalizedPhone,
@@ -26,7 +28,7 @@ export const passwordChangeSchema = z.object({
 
 export const otpSchema = z.object({
   phone: normalizedPhone,
-  otp: z.string().regex(/^\d{4}$/, "OTP must be 4 digits"),
+  otp: z.string().transform(v => v.trim()).pipe(z.string().regex(/^\d{4}$/, "OTP must be 4 digits")),
 });
 
 export const registerSchema = z.object({
@@ -59,6 +61,13 @@ export const workerProfileSchema = z.object({
     days: z.array(z.string()),
     startTime: z.string(),
     endTime: z.string(),
+  }).optional(),
+  bankDetails: z.object({
+    accountHolderName: z.string().optional(),
+    accountNumber: z.string().optional(),
+    ifsc: z.string().optional(),
+    bankName: z.string().optional(),
+    upi: z.string().optional(),
   }).optional(),
 });
 
@@ -136,12 +145,16 @@ export const createDisputeSchema = z.object({
 
 export const createAttendanceSchema = z.object({
   jobId: z.string(),
-  workerId: z.string(),
-  date: z.string().datetime(),
-  checkIn: z.string().datetime().optional(),
-  checkOut: z.string().datetime().optional(),
-  status: z.enum(["present", "absent", "half_day", "late"]),
+  workerId: z.string().optional(),
+  date: z.string().optional(),
+  checkIn: z.string().optional(),
+  checkOut: z.string().optional(),
+  status: z.enum(["present", "absent", "half_day", "late", "approved", "rejected"]).optional().default("present"),
   notes: z.string().optional(),
+  action: z.string().optional(),
+  checkInLocation: z.object({ lat: z.number(), lng: z.number() }).optional(),
+  checkOutLocation: z.object({ lat: z.number(), lng: z.number() }).optional(),
+  timestamp: z.string().optional(),
 });
 
 export const createProjectSchema = z.object({

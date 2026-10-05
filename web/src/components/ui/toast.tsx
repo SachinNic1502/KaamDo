@@ -214,6 +214,22 @@ function Toaster({
   )
 }
 
+export function useToast() {
+  return {
+    toast: (opts?: any) => {
+      try {
+        if (typeof (toast as any)?.add === "function") {
+          (toast as any).add(opts);
+        } else if (typeof (toast as any)?.create === "function") {
+          (toast as any).create(opts);
+        }
+      } catch {
+        // fallback
+      }
+    },
+  };
+}
+
 const createToastManager = ToastPrimitive.createToastManager
 const useToastManager = ToastPrimitive.useToastManager
 

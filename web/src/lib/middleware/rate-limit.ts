@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRedisClient } from "@/lib/services/redis-client";
 
 interface RateLimitStore {
   count: number;
@@ -21,7 +22,6 @@ const defaultOptions: RateLimitOptions = {
 };
 
 function getClientIdentifier(request: NextRequest): string {
-  // Try to get IP from various headers
   const forwarded = request.headers.get("x-forwarded-for");
   const realIp = request.headers.get("x-real-ip");
   const cfConnectingIp = request.headers.get("cf-connecting-ip");
@@ -31,9 +31,7 @@ function getClientIdentifier(request: NextRequest): string {
              cfConnectingIp || 
              "unknown";
   
-  // Combine IP with user agent for better uniqueness
   const userAgent = request.headers.get("user-agent") || "unknown";
-  
   return `${ip}-${userAgent}`;
 }
 
@@ -41,39 +39,61 @@ export function rateLimit(options: Partial<RateLimitOptions> = {}) {
   const opts = { ...defaultOptions, ...options };
 
   return async (request: NextRequest): Promise<NextResponse | null> => {
+    // In development mode, bypass rate limiting to prevent blocking local development and testing
+    if (process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_RATE_LIMIT !== "true") {
+      return null;
+    }
+
     const key = opts.keyGenerator 
       ? opts.keyGenerator(request) 
       : getClientIdentifier(request);
 
     const now = Date.now();
-    const record = rateLimitStore.get(key);
+    let currentCount = 0;
+    let resetTimeMs = now + opts.windowMs;
 
-    // Clean up expired records
-    if (record && now > record.resetTime) {
-      rateLimitStore.delete(key);
+    try {
+      const redis = await getRedisClient();
+      const redisKey = `ratelimit:${key}`;
+      const windowSec = Math.ceil(opts.windowMs / 1000);
+
+      const count = await redis.eval(
+        `local n = redis.call('INCR', KEYS[1])
+         if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+         return n`,
+        { keys: [redisKey], arguments: [windowSec.toString()] }
+      );
+
+      currentCount = Number(count);
+      const ttl = await redis.ttl(redisKey);
+      if (ttl > 0) resetTimeMs = now + (ttl * 1000);
+    } catch {
+      // Fallback to in-memory store if Redis is unavailable or unconfigured
+      const record = rateLimitStore.get(key);
+      if (record && now > record.resetTime) {
+        rateLimitStore.delete(key);
+      }
+
+      let currentRecord = rateLimitStore.get(key);
+      if (!currentRecord || now > currentRecord.resetTime) {
+        currentRecord = {
+          count: 0,
+          resetTime: now + opts.windowMs,
+        };
+        rateLimitStore.set(key, currentRecord);
+      }
+      currentRecord.count++;
+      currentCount = currentRecord.count;
+      resetTimeMs = currentRecord.resetTime;
     }
 
-    // Get or create record
-    let currentRecord = rateLimitStore.get(key);
-    if (!currentRecord || now > currentRecord.resetTime) {
-      currentRecord = {
-        count: 0,
-        resetTime: now + opts.windowMs,
-      };
-      rateLimitStore.set(key, currentRecord);
-    }
-
-    // Increment counter
-    currentRecord.count++;
-
-    // Check if limit exceeded
-    if (currentRecord.count > opts.maxRequests) {
-      const resetTime = new Date(currentRecord.resetTime).toISOString();
+    if (currentCount > opts.maxRequests) {
+      const resetTime = new Date(resetTimeMs).toISOString();
       return NextResponse.json(
         {
           success: false,
           error: "Too many requests",
-          retryAfter: Math.ceil((currentRecord.resetTime - now) / 1000),
+          retryAfter: Math.ceil((resetTimeMs - now) / 1000),
         },
         {
           status: 429,
@@ -81,23 +101,13 @@ export function rateLimit(options: Partial<RateLimitOptions> = {}) {
             "X-RateLimit-Limit": opts.maxRequests.toString(),
             "X-RateLimit-Remaining": "0",
             "X-RateLimit-Reset": resetTime,
-            "Retry-After": Math.ceil((currentRecord.resetTime - now) / 1000).toString(),
+            "Retry-After": Math.ceil((resetTimeMs - now) / 1000).toString(),
           },
         }
       );
     }
 
-    // Add rate limit headers to response
-    const response = NextResponse.json(
-      { success: false, error: "Rate limit check passed" },
-      { status: 200 }
-    );
-    
-    response.headers.set("X-RateLimit-Limit", opts.maxRequests.toString());
-    response.headers.set("X-RateLimit-Remaining", (opts.maxRequests - currentRecord.count).toString());
-    response.headers.set("X-RateLimit-Reset", new Date(currentRecord.resetTime).toISOString());
-
-    return null; // Continue to next middleware/handler
+    return null;
   };
 }
 

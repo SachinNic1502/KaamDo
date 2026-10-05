@@ -19,6 +19,16 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = resourceScope(authUser, "disputes");
 
+    if (query.disputeId) {
+      const id = objectIdSchema.parse(query.disputeId);
+      const dispute = await Dispute.findOne({ _id: id, ...filter })
+        .populate("jobId", "jobNumber")
+        .populate("raisedBy", "name phone")
+        .lean();
+      if (!dispute) return errorResponse("Dispute not found", 404);
+      return successResponse(dispute);
+    }
+
     if (search) {
       filter.$or = [
         { reason: { $regex: search, $options: "i" } },
