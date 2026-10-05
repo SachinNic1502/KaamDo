@@ -119,7 +119,11 @@ export function useAddAdditionalCharge() {
     }) => {
       return api.patch<ApiResponse<Job>>("/api/jobs", {
         jobId,
-        additionalCharge: { amount, reason },
+        additionalCharge: {
+          amount,
+          description: reason,
+          reason,
+        },
       });
     },
     onSuccess: (_, variables) => {

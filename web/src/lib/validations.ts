@@ -111,8 +111,11 @@ export const updateJobStatusSchema = z.object({
 });
 
 export const additionalChargeSchema = z.object({
-  description: z.string().min(5),
+  description: z.string().min(3).optional(),
+  reason: z.string().min(3).optional(),
   amount: z.number().positive(),
+}).refine((data) => !!(data.description || data.reason), {
+  message: "Either description or reason is required",
 });
 
 export const materialSchema = z.object({

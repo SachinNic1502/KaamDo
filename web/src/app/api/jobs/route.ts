@@ -328,7 +328,13 @@ export async function PATCH(request: NextRequest) {
 
     if ((updates.additionalCharge || updates.materials || updates.material) && !["work_started", "in_progress"].includes(job.status)) return errorResponse("Job costs are locked", 409);
     if (updates.additionalCharge) {
-      job.additionalCharges.push({ ...updates.additionalCharge, status: "pending" });
+      const chargeDesc = updates.additionalCharge.description || updates.additionalCharge.reason || "Additional Charge";
+      job.additionalCharges.push({
+        description: chargeDesc,
+        reason: chargeDesc,
+        amount: updates.additionalCharge.amount,
+        status: "pending",
+      });
     }
 
     if (updates.chargeDecision) {

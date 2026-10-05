@@ -15,6 +15,7 @@ import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../utils
 import { logout } from "../../../store/authSlice";
 import { AppDispatch } from "../../../store";
 import { AppHeader, Avatar, Card, LogoWordmark } from "../../../components/ui";
+import { useJobs } from "../../../hooks/use-api";
 
 interface MenuItem {
   icon: keyof typeof Ionicons.glyphMap;

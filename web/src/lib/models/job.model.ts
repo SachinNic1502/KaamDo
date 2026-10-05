@@ -104,6 +104,7 @@ const JobSchema = new Schema<IJobDocument>(
     additionalCharges: [
       {
         description: String,
+        reason: String,
         amount: Number,
         status: {
           type: String,
