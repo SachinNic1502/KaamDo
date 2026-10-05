@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         .lean();
       if (!job) return errorResponse("Job not found", 404);
 
-      const isCustomer = authUser.role === "customer" && String(job.customerId?._id || job.customerId) === authUser.userId;
+      const isCustomer = String(job.customerId?._id || job.customerId) === authUser.userId;
       const isWorker = authUser.role === "worker" && (String(job.workerId?._id || job.workerId) === authUser.userId || job.status === "searching");
       const isAdmin = authUser.role === "admin";
       if (!isCustomer && !isWorker && !isAdmin) return errorResponse("Forbidden", 403, "FORBIDDEN");
@@ -87,11 +87,11 @@ export async function POST(request: NextRequest) {
     await connectDB();
     const authUser = await requireAuth(request);
 
-    if (authUser.role !== "customer") return errorResponse("Forbidden", 403, "FORBIDDEN");
     const body = await request.json();
     const validated = createJobSchema.parse(body);
 
-    const user = await User.findById(authUser.userId);
+    const targetCustomerId = (authUser.role === "admin" && body.customerId) ? body.customerId : authUser.userId;
+    const user = await User.findById(targetCustomerId);
     if (!user) return errorResponse("User not found", 404);
 
     const category = await ServiceCategory.findById(validated.categoryId);
@@ -102,7 +102,10 @@ export async function POST(request: NextRequest) {
         String(item._id) === validated.subcategoryId || item.slug === validated.subcategoryId
     );
     if (!subcategory || !subcategory.isActive) return errorResponse("Subcategory not found", 400);
-    if (new Date(validated.scheduledDate).getTime() < Date.now()) return errorResponse("Choose a future date", 400);
+
+    const scheduledTimestamp = new Date(validated.scheduledDate).getTime();
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    if (scheduledTimestamp < fiveMinutesAgo) return errorResponse("Choose a future or current date", 400);
     const jobNumber = generateJobNumber();
     const startOtp = generateOTP();
 
