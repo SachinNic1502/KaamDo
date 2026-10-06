@@ -216,10 +216,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const allowedFields = authUser.role === "admin"
-      ? ["status", "workerId", "startOtp", "completionOtp", "additionalCharge", "chargeDecision", "materials", "material", "rating", "review"]
+      ? ["status", "workerId", "startOtp", "completionOtp", "additionalCharge", "chargeDecision", "chargeAction", "chargeId", "materials", "material", "rating", "review"]
       : authUser.role === "worker"
         ? ["status", "startOtp", "completionOtp", "additionalCharge", "materials", "material"]
-        : ["status", "completionOtp", "chargeDecision", "rating", "review"];
+        : ["status", "completionOtp", "chargeDecision", "chargeAction", "chargeId", "rating", "review"];
     if (Object.keys(updates).some((key) => !allowedFields.includes(key))) {
       return errorResponse("Forbidden update fields", 403, "FORBIDDEN");
     }
@@ -323,7 +323,7 @@ export async function PATCH(request: NextRequest) {
       job.startOtp = generateOTP();
       job.startOtpFailures = 0;
       job.status = "worker_assigned";
-      
+
       // Send real-time notification
       await RealtimeService.notifyWorkerAssigned({
         jobId: job._id.toString(),
@@ -349,19 +349,31 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    if (updates.chargeDecision) {
+    const chargeDecision = updates.chargeDecision || (updates.chargeId && updates.chargeAction ? {
+      chargeId: updates.chargeId,
+      decision: (updates.chargeAction === "approve" || updates.chargeAction === "approved") ? ("approved" as const) : ("rejected" as const),
+    } : null);
+
+    if (chargeDecision) {
       if (!["work_started", "in_progress", "completion_requested"].includes(job.status)) {
         return errorResponse("Job costs are locked", 409);
       }
-      const decision = updates.chargeDecision;
       const charge = job.additionalCharges.find(
-        (c: { _id?: unknown }) => String(c._id) === decision.chargeId
+        (c: { _id?: unknown }) => String(c._id) === chargeDecision.chargeId
       );
       if (!charge) return errorResponse("Charge not found", 404);
       if (charge.status !== "pending") {
         return errorResponse("Charge has already been decided", 409, "INVALID_JOB_STATE");
       }
-      charge.status = decision.decision;
+      charge.status = chargeDecision.decision;
+
+      await RealtimeService.broadcastJobUpdate({
+        jobId: job._id.toString(),
+        status: job.status,
+        customerId: job.customerId.toString(),
+        workerId: job.workerId?.toString(),
+        updateData: { additionalCharges: job.additionalCharges },
+      });
     }
 
     if (updates.material) {

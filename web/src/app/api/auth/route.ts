@@ -26,11 +26,28 @@ export async function POST(request: NextRequest) {
     if (action === "send-otp") {
       const validated = phoneSchema.parse(body);
 
-      await OtpStorage.reserveSend(validated.phone);
+      try {
+        await OtpStorage.reserveSend(validated.phone);
+      } catch (rateErr) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[Development] Bypassing OTP send rate limit for:", validated.phone);
+        } else {
+          throw rateErr;
+        }
+      }
+
       const otp = generateOTP();
       await OtpStorage.storeOtp(validated.phone, otp);
-      try { await deliverOtp(validated.phone, otp); }
-      catch (error) { await OtpStorage.deleteOtp(validated.phone); throw error; }
+      try {
+        await deliverOtp(validated.phone, otp);
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[Development] deliverOtp warning for ${validated.phone}:`, error);
+        } else {
+          await OtpStorage.deleteOtp(validated.phone);
+          throw error;
+        }
+      }
       return successResponse({
         phone: validated.phone,
         otpExpiresIn: 300,
@@ -43,11 +60,28 @@ export async function POST(request: NextRequest) {
     if (action === "resend-otp") {
       const validated = phoneSchema.parse(body);
 
-      await OtpStorage.reserveSend(validated.phone);
+      try {
+        await OtpStorage.reserveSend(validated.phone);
+      } catch (rateErr) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[Development] Bypassing OTP resend rate limit for:", validated.phone);
+        } else {
+          throw rateErr;
+        }
+      }
+
       const otp = generateOTP();
       await OtpStorage.storeOtp(validated.phone, otp);
-      try { await deliverOtp(validated.phone, otp); }
-      catch (error) { await OtpStorage.deleteOtp(validated.phone); throw error; }
+      try {
+        await deliverOtp(validated.phone, otp);
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[Development] deliverOtp warning for ${validated.phone}:`, error);
+        } else {
+          await OtpStorage.deleteOtp(validated.phone);
+          throw error;
+        }
+      }
       return successResponse({
         phone: validated.phone,
         otpExpiresIn: 300,
@@ -224,7 +258,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Environment",
     },
   });
 }

@@ -1,13 +1,14 @@
 const resolveApiBaseUrl = (): string => {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (envUrl) {
-    return envUrl.replace(/\/+$/, "");
-  }
-
+  // When running in a browser on localhost (Expo Web preview), connect directly to local Next.js dev server
   if (typeof window !== "undefined" && window.location) {
     if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
       return "http://localhost:3000";
     }
+  }
+
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, "");
   }
 
   return "https://kaam-do-mauve.vercel.app";
@@ -39,7 +40,11 @@ async function request<T>(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || "An error occurred");
+    if (response.status === 429 && __DEV__) {
+      console.warn(`[KaamDo Dev] 429 rate limit bypassed for ${endpoint}`);
+      throw new Error("Rate limit reached. In development mode, use code 1234 or wait 10s.");
+    }
+    throw new Error(data.message || data.error || "An error occurred");
   }
 
   return data;

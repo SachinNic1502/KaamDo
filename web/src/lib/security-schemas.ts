@@ -62,6 +62,8 @@ export const jobUpdateSchema = z.object({
     chargeId: objectIdSchema,
     decision: z.enum(["approved", "rejected"]),
   }).strict().optional(),
+  chargeAction: z.enum(["approve", "reject", "approved", "rejected"]).optional(),
+  chargeId: objectIdSchema.optional(),
   material: materialSchema.strict().optional(),
   materials: z.array(materialSchema.strict()).max(100).optional(),
   rating: z.number().int().min(1).max(5).optional(),

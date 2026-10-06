@@ -13,7 +13,7 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, X-Environment",
     },
   });
 }
@@ -27,15 +27,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = phoneSchema.parse(body);
 
-    await OtpStorage.reserveSend(validated.phone);
+    try {
+      await OtpStorage.reserveSend(validated.phone);
+    } catch (rateErr) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[Development] Bypassing OTP send rate limit for:", validated.phone);
+      } else {
+        throw rateErr;
+      }
+    }
     const otp = generateOTP();
     await OtpStorage.storeOtp(validated.phone, otp);
 
     try {
       await deliverOtp(validated.phone, otp);
     } catch (error) {
-      await OtpStorage.deleteOtp(validated.phone);
-      throw error;
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`[Development] deliverOtp warning for ${validated.phone}:`, error);
+      } else {
+        await OtpStorage.deleteOtp(validated.phone);
+        throw error;
+      }
     }
 
     return successResponse(

@@ -3,25 +3,52 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 
-const RECENT_BOOKINGS = [
-  { user: "Vikram S.", city: "Indiranagar, Bengaluru", service: "Switchboard Overhaul", time: "3 mins ago" },
-  { user: "Pooja V.", city: "Kothrud, Pune", service: "AC Deep Servicing", time: "8 mins ago" },
-  { user: "Naveen R.", city: "Sector 62, Noida", service: "Water Pipe Leakage", time: "14 mins ago" },
-  { user: "Ananya M.", city: "Andheri West, Mumbai", service: "Door Lock Fitting", time: "19 mins ago" },
-  { user: "Girish K.", city: "Madhapur, Hyderabad", service: "Wall Texture Paint", time: "26 mins ago" },
-];
+interface TickerItem {
+  user: string;
+  city: string;
+  service: string;
+  time: string;
+}
 
 export default function SocialProofTicker() {
+  const [tickerItems, setTickerItems] = useState<TickerItem[]>([]);
   const [tickerIndex, setTickerIndex] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTickerIndex((prev) => (prev + 1) % RECENT_BOOKINGS.length);
-    }, 4000);
-    return () => clearInterval(timer);
+    let isMounted = true;
+    async function loadTicker() {
+      try {
+        const res = await fetch("/api/platform/social-proof");
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && json.data?.tickerItems?.length > 0) {
+            setTickerItems(json.data.tickerItems);
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+    loadTicker();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const current = RECENT_BOOKINGS[tickerIndex];
+  useEffect(() => {
+    if (tickerItems.length <= 1) return;
+    const timer = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % tickerItems.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [tickerItems]);
+
+  const current = tickerItems[tickerIndex] || {
+    user: "Live Network",
+    city: "India",
+    service: "Verified Services",
+    time: "Active now",
+  };
 
   return (
     <div className="bg-primary/10 border-b border-primary/20 py-1.5 px-4 text-xs">

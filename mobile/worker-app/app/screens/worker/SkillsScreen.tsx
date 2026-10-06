@@ -23,19 +23,19 @@ export const SkillsScreen = ({ navigation }: any) => {
   const { data: categories = [] } = useCategories();
 
   const [skills, setSkills] = useState<string[]>(
-    workerProfile?.skills || ["Electrician"]
+    workerProfile?.skills || []
   );
   const [hourlyRate, setHourlyRate] = useState(
-    (workerProfile?.hourlyRate || 399).toString()
+    workerProfile?.hourlyRate ? workerProfile.hourlyRate.toString() : ""
   );
   const [dailyRate, setDailyRate] = useState(
-    (workerProfile?.dailyRate || 1800).toString()
+    workerProfile?.dailyRate ? workerProfile.dailyRate.toString() : ""
   );
   const [experience, setExperience] = useState(
-    (workerProfile?.experience || 5).toString()
+    workerProfile?.experience ? workerProfile.experience.toString() : ""
   );
   const [serviceArea, setServiceArea] = useState(
-    workerProfile?.serviceAreas?.[0] || "Indiranagar, Bengaluru"
+    workerProfile?.serviceAreas?.[0] || ""
   );
   const [serviceRadiusKm, setServiceRadiusKm] = useState<number>(
     workerProfile?.serviceRadiusKm || 15
@@ -88,19 +88,7 @@ export const SkillsScreen = ({ navigation }: any) => {
     }
   };
 
-  const availableSkills = categories.length > 0
-    ? categories.map((c) => c.name)
-    : [
-        "Electrician",
-        "Plumber",
-        "Carpenter",
-        "Painter",
-        "AC Technician",
-        "Appliance Repair",
-        "Cleaner",
-        "Mason",
-        "Gardener",
-      ];
+  const availableSkills = categories.map((c) => c.name);
 
   const toggleSkill = (skill: string) => {
     if (skills.includes(skill)) {
@@ -188,28 +176,34 @@ export const SkillsScreen = ({ navigation }: any) => {
           </Text>
 
           <View style={styles.chipsContainer}>
-            {availableSkills.map((s) => {
-              const active = skills.includes(s);
-              return (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.skillChip, active && styles.skillChipActive]}
-                  onPress={() => toggleSkill(s)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={active ? "checkmark-circle" : "add-circle-outline"}
-                    size={16}
-                    color={active ? Colors.white : Colors.textSecondary}
-                  />
-                  <Text
-                    style={[styles.skillChipText, active && styles.skillChipTextActive]}
+            {availableSkills.length === 0 ? (
+              <Text style={{ fontSize: FontSize.xs, color: Colors.textMuted, paddingVertical: 8 }}>
+                Loading available trade categories...
+              </Text>
+            ) : (
+              availableSkills.map((s) => {
+                const active = skills.includes(s);
+                return (
+                  <TouchableOpacity
+                    key={s}
+                    style={[styles.skillChip, active && styles.skillChipActive]}
+                    onPress={() => toggleSkill(s)}
+                    activeOpacity={0.7}
                   >
-                    {s}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                    <Ionicons
+                      name={active ? "checkmark-circle" : "add-circle-outline"}
+                      size={16}
+                      color={active ? Colors.white : Colors.textSecondary}
+                    />
+                    <Text
+                      style={[styles.skillChipText, active && styles.skillChipTextActive]}
+                    >
+                      {s}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
         </View>
 
@@ -218,7 +212,7 @@ export const SkillsScreen = ({ navigation }: any) => {
 
           <Input
             label="Hourly Rate (₹/hr)"
-            placeholder="e.g. 399"
+            placeholder="Hourly service rate (₹)"
             value={hourlyRate}
             onChangeText={setHourlyRate}
             keyboardType="numeric"
@@ -227,7 +221,7 @@ export const SkillsScreen = ({ navigation }: any) => {
 
           <Input
             label="Full Day Rate (₹/day - Optional)"
-            placeholder="e.g. 1800"
+            placeholder="Full-day rate (₹)"
             value={dailyRate}
             onChangeText={setDailyRate}
             keyboardType="numeric"
@@ -236,7 +230,7 @@ export const SkillsScreen = ({ navigation }: any) => {
 
           <Input
             label="Years of Experience"
-            placeholder="e.g. 5"
+            placeholder="Years of professional experience"
             value={experience}
             onChangeText={setExperience}
             keyboardType="numeric"

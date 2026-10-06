@@ -7,8 +7,9 @@ export class ApiError extends Error {
   }
 }
 
-// Keep internal exception details out of responses and application logs.
+// Keep internal exception details out of responses, but log them for debugging
 export function handleApiError(error: unknown) {
+  console.error("[API Error Caught in handleApiError]:", error);
   if (error instanceof ApiError) {
     return errorResponse(error.message, error.status, error.code);
   }
@@ -20,5 +21,6 @@ export function handleApiError(error: unknown) {
   if (error instanceof SyntaxError) {
     return errorResponse("Invalid request", 400, "INVALID_REQUEST");
   }
-  return errorResponse("Internal server error", 500, "INTERNAL_ERROR");
+  const message = error instanceof Error ? error.message : "Internal server error";
+  return errorResponse(process.env.NODE_ENV !== "production" ? message : "Internal server error", 500, "INTERNAL_ERROR");
 }

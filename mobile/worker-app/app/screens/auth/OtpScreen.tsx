@@ -157,12 +157,12 @@ export const OtpScreen = ({ route, navigation }: any) => {
               We sent a 4-digit verification code to{"\n"}
               <Text style={styles.phoneHighlight}>+91 {phone}</Text>
             </Text>
-            {otpDemo && (
+            {Boolean(otpDemo) ? (
               <TouchableOpacity onPress={handleQuickFill} style={styles.demoBadge} activeOpacity={0.7}>
                 <Ionicons name="flash" size={12} color={Colors.warningDark} />
                 <Text style={styles.demoText}>Auto-fill Code: {otpDemo}</Text>
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
 
           {/* OTP inputs */}

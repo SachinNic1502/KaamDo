@@ -67,7 +67,7 @@ export async function initiatePayment(options: PaymentOptions): Promise<void> {
     }
   } else {
     if (!order.sessionId) throw new Error("Checkout session unavailable");
-    const base = process.env.EXPO_PUBLIC_API_URL;
+    const base = process.env.EXPO_PUBLIC_API_URL?.trim() || "https://kaam-do-mauve.vercel.app";
     await Linking.openURL(
       `${base}/checkout/cashfree#session=${encodeURIComponent(order.sessionId)}&mode=${order.environment}`
     );
@@ -98,4 +98,15 @@ export async function initiatePayment(options: PaymentOptions): Promise<void> {
   if (verified.data?.status !== "completed") {
     throw new Error("Payment confirmation pending. Please check booking details.");
   }
+}
+
+export async function payWithCash(jobId: string): Promise<ApiResponse<{ status: string; paymentMethod: string; amount: number }>> {
+  const token = await SecureStore.getItemAsync("token");
+  if (!token) throw new Error("Not authenticated");
+
+  return api.post<ApiResponse<{ status: string; paymentMethod: string; amount: number }>>(
+    "/api/payments",
+    { action: "pay-cash", jobId, provider: "cash" },
+    token
+  );
 }

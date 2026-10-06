@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin, Accept-Version, Content-Length",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin, Accept-Version, Content-Length, X-Environment",
         "Access-Control-Max-Age": "86400",
       },
     });
@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
   const response = NextResponse.next();
   response.headers.set("Access-Control-Allow-Origin", "*");
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Accept-Version, Content-Length");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Accept-Version, Content-Length, X-Environment");
 
   return response;
 }

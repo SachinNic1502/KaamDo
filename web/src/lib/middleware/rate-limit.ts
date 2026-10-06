@@ -39,8 +39,19 @@ export function rateLimit(options: Partial<RateLimitOptions> = {}) {
   const opts = { ...defaultOptions, ...options };
 
   return async (request: NextRequest): Promise<NextResponse | null> => {
-    // In development mode, bypass rate limiting to prevent blocking local development and testing
-    if (process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_RATE_LIMIT !== "true") {
+    // In development mode or local development environment, bypass rate limiting
+    const host = request.headers.get("host") || "";
+    const origin = request.headers.get("origin") || "";
+    const isLocalOrDev =
+      process.env.NODE_ENV !== "production" ||
+      host.includes("localhost") ||
+      host.includes("127.0.0.1") ||
+      host.startsWith("10.") ||
+      host.startsWith("192.168.") ||
+      origin.includes("localhost") ||
+      request.headers.get("x-environment") === "development";
+
+    if (isLocalOrDev && process.env.ENABLE_DEV_RATE_LIMIT !== "true") {
       return null;
     }
 

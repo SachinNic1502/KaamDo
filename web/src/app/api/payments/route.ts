@@ -65,16 +65,78 @@ export async function POST(request: NextRequest) {
     }
     const { z } = await import("zod");
     const body = z.object({
-      action: z.enum(["create-order", "verify"]),
+      action: z.enum(["create-order", "verify", "pay-cash"]),
       jobId: z.string().regex(/^[a-f\d]{24}$/i),
-      provider: z.enum(["razorpay", "cashfree"]).default("razorpay"),
+      provider: z.enum(["razorpay", "cashfree", "cash"]).default("razorpay"),
       razorpay_payment_id: z.string().max(100).optional(),
       razorpay_signature: z.string().optional()
     }).parse(await request.json());
+
+    await connectDB();
+
+    // Handle Cash on Service Payment
+    if (body.action === "pay-cash" || body.provider === "cash") {
+      const fullJob = await Job.findById(body.jobId);
+      if (!fullJob) return errorResponse("Job not found", 404);
+      if (fullJob.customerId.toString() !== user.userId && user.role !== "admin") {
+        return errorResponse("Forbidden: Not your job", 403, "FORBIDDEN");
+      }
+
+      const basePrice = fullJob.finalPrice || fullJob.estimatedPrice || 299;
+      const materialsTotal = (fullJob.materials || []).reduce(
+        (sum: number, m: any) => sum + (m.totalPrice || (m.quantity * m.unitPrice) || 0),
+        0
+      );
+      const approvedChargesTotal = (fullJob.additionalCharges || [])
+        .filter((c: any) => c.status === "approved")
+        .reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+      const totalPayable = Math.round(basePrice + materialsTotal + approvedChargesTotal);
+
+      fullJob.status = "paid";
+      fullJob.finalPrice = totalPayable;
+      await fullJob.save();
+
+      const platformFee = Math.round(totalPayable * 0.1);
+      const workerEarning = totalPayable - platformFee;
+
+      const payment = await Payment.findOneAndUpdate(
+        { jobId: fullJob._id },
+        {
+          $set: {
+            customerId: fullJob.customerId,
+            workerId: fullJob.workerId,
+            amount: totalPayable,
+            platformFee,
+            workerEarning,
+            status: "completed",
+            paymentMethod: "cash",
+            transactionId: `cash_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          },
+        },
+        { upsert: true, new: true }
+      );
+
+      const { RealtimeService } = await import("@/lib/services/realtime");
+      await RealtimeService.broadcastJobUpdate({
+        jobId: fullJob._id.toString(),
+        status: "paid",
+        customerId: fullJob.customerId.toString(),
+        workerId: fullJob.workerId?.toString(),
+        updateData: { status: "paid", paymentMethod: "cash", amount: totalPayable },
+      });
+
+      return successResponse({
+        status: "completed",
+        jobStatus: "paid",
+        paymentMethod: "cash",
+        amount: totalPayable,
+        paymentId: payment._id,
+      }, "Cash payment confirmed and recorded successfully");
+    }
+
     const { createCheckout, confirmCheckout } = await import("@/lib/services/checkout");
     
     // Verify job ownership before proceeding to checkout
-    await connectDB();
     const job = await Job.findById(body.jobId).select("customerId pricingModel").lean();
     if (!job) return errorResponse("Job not found", 404);
     if (job.customerId.toString() !== user.userId && user.role !== "admin") {
@@ -86,7 +148,7 @@ export async function POST(request: NextRequest) {
     
     const customerId = user.role === "admin" ? job.customerId.toString() : user.userId;
     const result = body.action === "create-order"
-      ? await createCheckout(customerId, body.jobId, body.provider)
+      ? await createCheckout(customerId, body.jobId, body.provider as "razorpay" | "cashfree")
       : await confirmCheckout(customerId, body.jobId, body.razorpay_payment_id, body.razorpay_signature);
     return successResponse(result);
   } catch (error) {

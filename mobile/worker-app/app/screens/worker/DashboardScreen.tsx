@@ -59,8 +59,8 @@ export const DashboardScreen = ({ navigation }: any) => {
   }>({
     latitude: 12.9716,
     longitude: 77.5946,
-    address: "Indiranagar, Bengaluru",
-    city: "Bengaluru",
+    address: workerProfile?.serviceAreas?.[0] || "Calibrate Dispatch Base",
+    city: workerProfile?.serviceAreas?.[0] || "Service Territory",
     serviceRadiusKm: workerProfile?.serviceRadiusKm || 15,
   });
   const [isUpdatingLocation, setIsUpdatingLocation] = React.useState(false);
@@ -74,9 +74,9 @@ export const DashboardScreen = ({ navigation }: any) => {
           setCurrentLocation({
             latitude: data.latitude || 12.9716,
             longitude: data.longitude || 77.5946,
-            address: data.address || "Bengaluru Hub",
-            city: data.city || "Bengaluru",
-            serviceRadiusKm: data.serviceRadiusKm || 15,
+            address: data.address || workerProfile?.serviceAreas?.[0] || "Live Coverage Base",
+            city: data.city || workerProfile?.serviceAreas?.[0] || "Service Territory",
+            serviceRadiusKm: data.serviceRadiusKm || workerProfile?.serviceRadiusKm || 15,
           });
         }
       } catch {

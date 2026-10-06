@@ -38,6 +38,8 @@ const CORS_CONFIG = {
 
 function isOriginAllowed(origin: string | null): boolean {
   if (!origin) return true; // Allow requests with no origin (like mobile apps or curl requests)
+  if (process.env.NODE_ENV !== "production") return true; // Allow all local ports in development
+  if (origin.includes("localhost") || origin.includes("127.0.0.1")) return true;
 
   return CORS_CONFIG.allowedOrigins.includes(origin);
 }

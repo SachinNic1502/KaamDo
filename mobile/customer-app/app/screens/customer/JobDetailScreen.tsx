@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../utils/constants";
 import { useJobDetail, useUpdateJob, useCancelJob } from "../../../hooks/use-api";
 import { connectSocket, onWorkerLocationUpdate } from "../../../services/chat";
-import { initiatePayment } from "../../../services/payment";
+import { initiatePayment, payWithCash } from "../../../services/payment";
 import {
   AppHeader,
   StatusBadge,
@@ -42,6 +42,7 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
   const { mutate: mutateJob, isPending: isUpdating } = useUpdateJob();
   const { mutate: cancelBooking, isPending: isCancelling } = useCancelJob();
   const [paying, setPaying] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"online" | "cash">("online");
   const [workerGps, setWorkerGps] = useState<{
     lat: number;
     lng: number;
@@ -129,8 +130,8 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
       job.status === "on_the_way"
         ? "Technician is en-route. A visit/transit fee of ₹150 will apply."
         : job.status === "worker_assigned"
-        ? "Technician has been reserved. A dispatch reservation fee of ₹50 will apply."
-        : "Cancellation is free of charge.";
+          ? "Technician has been reserved. A dispatch reservation fee of ₹50 will apply."
+          : "Cancellation is free of charge.";
 
     Alert.alert(
       "Cancel Booking",
@@ -160,9 +161,14 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
   };
 
   const handleApproveCharge = (chargeId: string, approve: boolean) => {
+    const decision = approve ? "approved" : "rejected";
     mutateJob(
       {
         jobId: job._id,
+        chargeDecision: {
+          chargeId,
+          decision,
+        },
         chargeAction: approve ? "approve" : "reject",
         chargeId,
       },
@@ -174,12 +180,12 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
           );
           refetch();
         },
-        onError: (err) => toast.error("Action Failed", err.message),
+        onError: (err: any) => toast.error("Action Failed", err.message),
       }
     );
   };
 
-  const handlePay = async () => {
+  const handlePayOnline = async () => {
     setPaying(true);
     try {
       await initiatePayment({
@@ -193,10 +199,35 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
       toast.success("Payment Successful", "Thank you! Your payment has been settled successfully.");
       refetch();
     } catch (err: any) {
-      toast.error("Payment Failed", err.message || "Could not complete payment.");
+      toast.error("Payment Failed", err.message || "Could not complete online payment.");
     } finally {
       setPaying(false);
     }
+  };
+
+  const handlePayCash = () => {
+    Alert.alert(
+      "Confirm Cash Handover",
+      `Are you paying ₹${finalPayable} in cash directly to the technician?\n\nOnce confirmed, the invoice will be marked as settled.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm & Mark Paid",
+          onPress: async () => {
+            setPaying(true);
+            try {
+              await payWithCash(job._id);
+              toast.success("Payment Recorded", `Cash payment of ₹${finalPayable} confirmed.`);
+              refetch();
+            } catch (err: any) {
+              toast.error("Payment Failed", err.message || "Could not record cash payment.");
+            } finally {
+              setPaying(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -589,14 +620,105 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
             <Text style={styles.invoiceTotalVal}>₹{finalPayable}</Text>
           </View>
 
-          {["completed", "work_started"].includes(currentStatus) && (
-            <PrimaryButton
-              title={paying ? "Processing Payment..." : `Pay ₹${finalPayable} Online`}
-              onPress={handlePay}
-              loading={paying}
-              style={{ marginTop: Spacing.base }}
-            />
-          )}
+          {currentStatus === "paid" ? (
+            <View style={styles.paidSuccessCard}>
+              <View style={styles.paidSuccessHeader}>
+                <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+                <Text style={styles.paidSuccessTitle}>Payment Completed & Settled</Text>
+              </View>
+              <Text style={styles.paidSuccessSub}>
+                All dues of ₹{finalPayable} have been successfully cleared. Thank you for using KaamDo!
+              </Text>
+            </View>
+          ) : ["completed", "work_started", "in_progress", "payment_pending"].includes(currentStatus) ? (
+            <View style={styles.paymentSectionWrap}>
+              <Text style={styles.paymentSectionTitle}>Choose Payment Mode</Text>
+              <View style={styles.paymentOptionsStack}>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentOptionCard,
+                    paymentMode === "online" && styles.paymentOptionCardActive,
+                  ]}
+                  onPress={() => setPaymentMode("online")}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.paymentOptionLeft}>
+                    <View
+                      style={[
+                        styles.paymentRadioOuter,
+                        paymentMode === "online" && styles.paymentRadioOuterActive,
+                      ]}
+                    >
+                      {paymentMode === "online" && <View style={styles.paymentRadioInner} />}
+                    </View>
+                    <View style={styles.paymentOptionIconBadge}>
+                      <Ionicons name="card-outline" size={20} color={Colors.primary} />
+                    </View>
+                    <View style={styles.paymentOptionMeta}>
+                      <Text style={styles.paymentOptionLabel}>Pay Online</Text>
+                      <Text style={styles.paymentOptionSub}>Instant UPI, Cards & NetBanking</Text>
+                    </View>
+                  </View>
+                  <View style={styles.paymentBadgeInstant}>
+                    <Ionicons name="flash" size={11} color={Colors.primary} />
+                    <Text style={styles.paymentBadgeInstantText}>Instant</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.paymentOptionCard,
+                    paymentMode === "cash" && styles.paymentOptionCardActiveCash,
+                  ]}
+                  onPress={() => setPaymentMode("cash")}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.paymentOptionLeft}>
+                    <View
+                      style={[
+                        styles.paymentRadioOuter,
+                        paymentMode === "cash" && styles.paymentRadioOuterActiveCash,
+                      ]}
+                    >
+                      {paymentMode === "cash" && <View style={styles.paymentRadioInnerCash} />}
+                    </View>
+                    <View style={styles.paymentOptionIconBadgeCash}>
+                      <Ionicons name="cash-outline" size={20} color="#059669" />
+                    </View>
+                    <View style={styles.paymentOptionMeta}>
+                      <Text style={styles.paymentOptionLabel}>Pay with Cash</Text>
+                      <Text style={styles.paymentOptionSub}>Hand over cash directly to technician</Text>
+                    </View>
+                  </View>
+                  <View style={styles.paymentBadgeCash}>
+                    <Text style={styles.paymentBadgeCashText}>Cash on Service</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {paymentMode === "online" ? (
+                <PrimaryButton
+                  title={paying ? "Processing Online Payment..." : `Pay ₹${finalPayable} Online`}
+                  icon="card-outline"
+                  onPress={handlePayOnline}
+                  loading={paying}
+                  style={{ marginTop: Spacing.md }}
+                />
+              ) : (
+                <TouchableOpacity
+                  style={[styles.cashConfirmBtn, paying && styles.cashConfirmBtnDisabled]}
+                  onPress={handlePayCash}
+                  disabled={paying}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="cash" size={18} color={Colors.white} />
+                  <Text style={styles.cashConfirmBtnText}>
+                    {paying ? "Confirming Cash Payment..." : `Confirm Cash Payment (₹${finalPayable})`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null}
         </Card>
 
         {/* Cancel Action (Only when not started per policy) */}
@@ -1053,6 +1175,169 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: "700",
     color: Colors.textPrimary,
+  },
+  paidSuccessCard: {
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  paidSuccessHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  paidSuccessTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  paidSuccessSub: {
+    fontSize: FontSize.xs,
+    color: "#15803D",
+    lineHeight: 18,
+  },
+  paymentSectionWrap: {
+    marginTop: Spacing.md,
+  },
+  paymentSectionTitle: {
+    fontSize: FontSize.xxs,
+    fontWeight: "800",
+    color: Colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
+  },
+  paymentOptionsStack: {
+    gap: Spacing.sm,
+  },
+  paymentOptionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.surfaceSubtle,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
+  },
+  paymentOptionCardActive: {
+    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.primary,
+  },
+  paymentOptionCardActiveCash: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#10B981",
+  },
+  paymentOptionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 10,
+  },
+  paymentRadioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.textMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  paymentRadioOuterActive: {
+    borderColor: Colors.primary,
+  },
+  paymentRadioOuterActiveCash: {
+    borderColor: "#10B981",
+  },
+  paymentRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+  },
+  paymentRadioInnerCash: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#10B981",
+  },
+  paymentOptionIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  paymentOptionIconBadgeCash: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  paymentOptionMeta: {
+    flex: 1,
+  },
+  paymentOptionLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  paymentOptionSub: {
+    fontSize: FontSize.xxs + 1,
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+  paymentBadgeInstant: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: Colors.primaryLight2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  paymentBadgeInstantText: {
+    fontSize: FontSize.xxs,
+    fontWeight: "700",
+    color: Colors.primary,
+  },
+  paymentBadgeCash: {
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  paymentBadgeCashText: {
+    fontSize: FontSize.xxs,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  cashConfirmBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#059669",
+    paddingVertical: 14,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
+    gap: 8,
+    ...Shadows.sm,
+  },
+  cashConfirmBtnDisabled: {
+    opacity: 0.6,
+  },
+  cashConfirmBtnText: {
+    fontSize: FontSize.sm,
+    fontWeight: "700",
+    color: Colors.white,
   },
 });
 

@@ -19,15 +19,32 @@ export async function createCheckout(userId: string, jobId: string, gateway: Gat
   await connectDB();
   await assertPaymentStorage();
 
-  const job = await Job.findOne({ _id: jobId, customerId: userId, status: "completed" });
+  const job = await Job.findOne({
+    _id: jobId,
+    customerId: userId,
+    status: { $in: ["completed", "payment_pending", "work_started", "in_progress"] },
+  });
   if (!job?.workerId) {
-    throw new ApiError(404, "A completed job with an assigned worker is required", "JOB_NOT_FOUND");
+    throw new ApiError(404, "A valid job with an assigned worker is required", "JOB_NOT_FOUND");
   }
 
-  // Ensure finalPrice is resolved
-  const finalPrice = job.finalPrice || job.estimatedPrice || 299;
+  // Ensure total payable amount is resolved including approved extra charges & materials
+  const basePrice = job.finalPrice || job.estimatedPrice || 299;
+  const materialsTotal = (job.materials || []).reduce(
+    (sum: number, m: any) => sum + (m.totalPrice || (m.quantity * m.unitPrice) || 0),
+    0
+  );
+  const approvedAdditionalCharges = (job.additionalCharges || []).filter(
+    (c: any) => c.status === "approved"
+  );
+  const additionalChargesTotal = approvedAdditionalCharges.reduce(
+    (sum: number, c: any) => sum + (c.amount || 0),
+    0
+  );
+  const finalPrice = Math.round(basePrice + materialsTotal + additionalChargesTotal);
+
   if (!Number.isFinite(finalPrice) || finalPrice <= 0) {
-    throw new ApiError(409, "A completed job with a confirmed final price is required", "PRICE_NOT_CONFIRMED");
+    throw new ApiError(409, "A valid confirmed price is required", "PRICE_NOT_CONFIRMED");
   }
 
   const amountMinor = Math.round(finalPrice * 100);
