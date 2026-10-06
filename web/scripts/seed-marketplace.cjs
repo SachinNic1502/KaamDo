@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+require("dotenv").config({ path: [".env.local", ".env"] });
 
 const defaultCategories = [
   {
@@ -322,6 +323,14 @@ async function seedMarketplace() {
         email: "ramesh@example.com",
         passwordRaw: "WorkerPass123!",
         role: "worker",
+        skills: ["Electrician", "Wiring", "Switch & Socket Repair"],
+        experience: 6,
+        serviceAreas: ["Bengaluru", "Koramangala"],
+        hourlyRate: 299,
+        dailyRate: 1499,
+        rating: 4.9,
+        totalJobs: 142,
+        avatar: "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=160&auto=format&fit=crop&q=80",
       },
       {
         name: "Apex Builders (Contractor)",
@@ -329,6 +338,81 @@ async function seedMarketplace() {
         email: "apex.contractors@example.com",
         passwordRaw: "ContractorPass123!",
         role: "contractor",
+      },
+      {
+        name: "Mohammad Riaz",
+        phone: "9876543214",
+        email: "riaz@example.com",
+        passwordRaw: "WorkerPass123!",
+        role: "worker",
+        skills: ["Electrician", "MCB Wiring", "Switchboard Repair"],
+        experience: 8,
+        serviceAreas: ["Bengaluru", "Indiranagar"],
+        hourlyRate: 299,
+        dailyRate: 1599,
+        rating: 4.9,
+        totalJobs: 320,
+        avatar: "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=160&auto=format&fit=crop&q=80",
+      },
+      {
+        name: "Dinesh Sharma",
+        phone: "9876543215",
+        email: "dinesh@example.com",
+        passwordRaw: "WorkerPass123!",
+        role: "worker",
+        skills: ["Plumbing", "Leakage Repair", "Sanitary Fittings"],
+        experience: 6,
+        serviceAreas: ["Pune", "Kothrud"],
+        hourlyRate: 249,
+        dailyRate: 1399,
+        rating: 4.8,
+        totalJobs: 215,
+        avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=160&auto=format&fit=crop&q=80",
+      },
+      {
+        name: "Vikram Chauhan",
+        phone: "9876543216",
+        email: "chauhan@example.com",
+        passwordRaw: "WorkerPass123!",
+        role: "worker",
+        skills: ["AC & Appliance Repair", "Gas Refill", "Split AC Installation"],
+        experience: 10,
+        serviceAreas: ["Delhi NCR", "Noida", "Sector 62"],
+        hourlyRate: 399,
+        dailyRate: 1899,
+        rating: 4.9,
+        totalJobs: 410,
+        avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&auto=format&fit=crop&q=80",
+      },
+      {
+        name: "Rameshwar Prajapati",
+        phone: "9876543217",
+        email: "prajapati@example.com",
+        passwordRaw: "WorkerPass123!",
+        role: "worker",
+        skills: ["Carpentry", "Door Lock Fitting", "Custom Shelving"],
+        experience: 7,
+        serviceAreas: ["Mumbai", "Andheri West"],
+        hourlyRate: 349,
+        dailyRate: 1699,
+        rating: 4.85,
+        totalJobs: 180,
+        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&auto=format&fit=crop&q=80",
+      },
+      {
+        name: "Girish Nayak",
+        phone: "9876543218",
+        email: "girish@example.com",
+        passwordRaw: "WorkerPass123!",
+        role: "worker",
+        skills: ["Painting & Waterproofing", "Interior Painting", "Wall Texture"],
+        experience: 5,
+        serviceAreas: ["Hyderabad", "Madhapur"],
+        hourlyRate: 299,
+        dailyRate: 1400,
+        rating: 4.75,
+        totalJobs: 135,
+        avatar: "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=160&auto=format&fit=crop&q=80",
       },
     ];
 
@@ -344,6 +428,7 @@ async function seedMarketplace() {
           email: u.email,
           password: hashedPassword,
           role: u.role,
+          avatar: u.avatar,
           isActive: true,
           isPhoneVerified: true,
           createdAt: new Date(),
@@ -355,7 +440,7 @@ async function seedMarketplace() {
         userId = existingUser._id;
         await usersCol.updateOne(
           { _id: userId },
-          { $set: { password: hashedPassword, role: u.role, isActive: true, isPhoneVerified: true } }
+          { $set: { password: hashedPassword, role: u.role, avatar: u.avatar || existingUser.avatar, isActive: true, isPhoneVerified: true } }
         );
         console.log(`Updated demo user [${u.role}]: ${u.phone}`);
       }
@@ -366,19 +451,34 @@ async function seedMarketplace() {
         if (!existingProfile) {
           await workerProfilesCol.insertOne({
             userId,
-            skills: ["Electrician", "Wiring", "Switch & Socket Repair", "Appliance Repair"],
-            experience: 6,
-            serviceAreas: ["Bengaluru", "Mumbai", "Pune"],
-            hourlyRate: 299,
-            dailyRate: 1499,
+            skills: u.skills || ["Electrician", "Wiring", "Switch & Socket Repair"],
+            experience: u.experience || 5,
+            serviceAreas: u.serviceAreas || ["Bengaluru"],
+            hourlyRate: u.hourlyRate || 299,
+            dailyRate: u.dailyRate || 1499,
             status: "verified",
             isOnline: true,
-            rating: 4.9,
-            totalJobs: 142,
+            rating: u.rating || 4.8,
+            totalJobs: u.totalJobs || 100,
             createdAt: new Date(),
             updatedAt: new Date(),
           });
-          console.log("Created verified WorkerProfile for Ramesh Kumar.");
+          console.log(`Created verified WorkerProfile for ${u.name}.`);
+        } else {
+          await workerProfilesCol.updateOne(
+            { userId },
+            {
+              $set: {
+                skills: u.skills || existingProfile.skills,
+                experience: u.experience || existingProfile.experience,
+                serviceAreas: u.serviceAreas || existingProfile.serviceAreas,
+                hourlyRate: u.hourlyRate || existingProfile.hourlyRate,
+                status: "verified",
+                isOnline: true,
+                rating: u.rating || existingProfile.rating,
+              }
+            }
+          );
         }
       }
 

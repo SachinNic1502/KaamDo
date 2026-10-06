@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/header/Header";
@@ -38,6 +38,7 @@ import {
   ArrowUpRight,
   Sparkle,
   Briefcase,
+  Loader2,
 } from "lucide-react";
 
 // Top Metro & Tier 1 Cities
@@ -52,116 +53,71 @@ const POPULAR_CITIES = [
   "Ahmedabad",
 ];
 
-// Clean Service Categories for Discovery
-const MARKETPLACE_CATEGORIES = [
-  {
-    name: "Electrician",
-    slug: "electrical",
-    icon: Zap,
-    tagline: "Wiring, MCB, switchboards & appliance installations",
-    startingRate: "₹199",
-    count: "480+ Pros",
-  },
-  {
-    name: "Plumber",
-    slug: "plumbing",
-    icon: Droplets,
-    tagline: "Leakages, taps, flush tanks, pipes & sanitary fittings",
-    startingRate: "₹249",
-    count: "390+ Pros",
-  },
-  {
-    name: "Carpenter",
-    slug: "carpentry",
-    icon: Hammer,
-    tagline: "Furniture repairs, door locks, hinges & custom woodwork",
-    startingRate: "₹299",
-    count: "270+ Pros",
-  },
-  {
-    name: "AC & Appliances",
-    slug: "appliances",
-    icon: Wrench,
-    tagline: "AC servicing, gas refill, fridge & washing machine fixes",
-    startingRate: "₹399",
-    count: "320+ Pros",
-  },
-  {
-    name: "Painter",
-    slug: "painting",
-    icon: Paintbrush,
-    tagline: "Interior, exterior, texture painting & waterproofing",
-    startingRate: "₹899",
-    count: "180+ Pros",
-  },
-  {
-    name: "Deep Cleaning",
-    slug: "cleaning",
-    icon: Sparkles,
-    tagline: "Bathroom, kitchen, sofa sanitization & full-home cleanup",
-    startingRate: "₹499",
-    count: "210+ Pros",
-  },
-  {
-    name: "Daily Wage Labour",
-    slug: "construction",
-    icon: HardHat,
-    tagline: "Helpers, masonry, tile fixing, debris clearance & shifting",
-    startingRate: "₹650/day",
-    count: "540+ Pros",
-  },
-  {
-    name: "General Handyman",
-    slug: "handyman",
-    icon: Layers,
-    tagline: "Drilling, TV wall mounting, curtains, mirrors & fittings",
-    startingRate: "₹149",
-    count: "310+ Pros",
-  },
-];
+export interface Subcategory {
+  _id: string;
+  name: string;
+  description?: string;
+  basePrice: number;
+  pricingModel?: "fixed" | "hourly" | "visit";
+  estimatedDuration?: number;
+  isActive?: boolean;
+}
 
-// Verified Worker Spotlight Records
-const VERIFIED_WORKERS = [
-  {
-    id: "67a1b2c3d4e5f60000000001",
-    name: "Mohammad Riaz",
-    trade: "Master Electrician",
-    experience: "8 yrs exp",
-    rating: 4.9,
-    jobs: 320,
-    rate: "₹299/hr",
-    city: "Bengaluru",
-    locality: "Indiranagar",
-    avatar: "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=160&auto=format&fit=crop&q=80",
-    badges: ["Aadhaar Verified", "Police Cleared"],
-  },
-  {
-    id: "67a1b2c3d4e5f60000000002",
-    name: "Dinesh Sharma",
-    trade: "Plumbing Specialist",
-    experience: "6 yrs exp",
-    rating: 4.8,
-    jobs: 215,
-    rate: "₹249/hr",
-    city: "Pune",
-    locality: "Kothrud",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=160&auto=format&fit=crop&q=80",
-    badges: ["Skill Certified", "Fast Response"],
-  },
-  {
-    id: "67a1b2c3d4e5f60000000003",
-    name: "Vikram Chauhan",
-    trade: "HVAC & AC Technician",
-    experience: "10 yrs exp",
-    rating: 4.9,
-    jobs: 410,
-    rate: "₹399/hr",
-    city: "Delhi NCR",
-    locality: "Sector 62, Noida",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&auto=format&fit=crop&q=80",
-    badges: ["Brand Authorized", "Aadhaar Verified"],
-  },
-];
+export interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  subcategories?: Subcategory[];
+  isActive?: boolean;
+}
+
+export interface WorkerRecord {
+  _id: string;
+  userId?: {
+    _id: string;
+    name: string;
+    avatar?: string;
+    phone?: string;
+  };
+  skills: string[];
+  experience: number;
+  serviceAreas?: string[];
+  hourlyRate?: number;
+  dailyRate?: number;
+  status: string;
+  isOnline: boolean;
+  rating: number;
+  totalJobs: number;
+}
+
+// Icon mapper for dynamic categories
+const CATEGORY_ICON_MAP: Record<string, any> = {
+  electrician: Zap,
+  electrical: Zap,
+  plumbing: Droplets,
+  plumber: Droplets,
+  carpentry: Hammer,
+  carpenter: Hammer,
+  "ac-repair": Wrench,
+  "ac-and-appliance-repair": Wrench,
+  appliances: Wrench,
+  ac: Wrench,
+  painting: Paintbrush,
+  "painting-and-waterproofing": Paintbrush,
+  painter: Paintbrush,
+  cleaning: Sparkles,
+  "cleaning-and-pest-control": Sparkles,
+  construction: HardHat,
+  labour: HardHat,
+  handyman: Layers,
+};
+
+function getCategoryIcon(slug?: string, name?: string) {
+  const normalizedSlug = slug?.toLowerCase().replace(/[^a-z0-9]/g, "-") || "";
+  const normalizedName = name?.toLowerCase().replace(/[^a-z0-9]/g, "-") || "";
+  return CATEGORY_ICON_MAP[normalizedSlug] || CATEGORY_ICON_MAP[normalizedName] || Layers;
+}
 
 const TRUST_METRICS = [
   { label: "Verified Professionals", value: "24,000+" },
@@ -300,6 +256,49 @@ export default function Home() {
   const [selectedCity, setSelectedCity] = useState("Bengaluru");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [workers, setWorkers] = useState<WorkerRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    async function loadData() {
+      try {
+        const [catRes, workerRes] = await Promise.allSettled([
+          fetch("/api/categories?limit=50").then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/workers?limit=6").then((r) => (r.ok ? r.json() : null)),
+        ]);
+
+        if (!active) return;
+
+        if (catRes.status === "fulfilled" && catRes.value?.data) {
+          setCategories(catRes.value.data);
+        }
+        if (workerRes.status === "fulfilled" && workerRes.value?.data) {
+          setWorkers(workerRes.value.data);
+        }
+      } catch (err) {
+        console.error("Failed to load marketplace data:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    loadData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const heroWorker = workers[0];
+  const heroWorkerName = heroWorker?.userId?.name || "Mohammad Riaz";
+  const heroWorkerRate = heroWorker?.hourlyRate ? `₹${heroWorker.hourlyRate}/hr` : "₹299/hr";
+  const heroWorkerTrade = heroWorker?.skills?.[0] || "Master Electrician";
+  const heroWorkerExp = `${heroWorker?.experience || 8} yrs exp`;
+  const heroWorkerRating = heroWorker?.rating ? heroWorker.rating.toFixed(1) : "4.9";
+  const heroWorkerJobs = heroWorker?.totalJobs || 320;
+  const heroWorkerAvatar = heroWorker?.userId?.avatar || "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=160&auto=format&fit=crop&q=80";
+  const heroWorkerLocality = heroWorker?.serviceAreas?.[0] || "Indiranagar";
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans antialiased selection:bg-primary/20 selection:text-primary">
       <Header />
@@ -383,13 +382,19 @@ export default function Home() {
               {/* Popular Discovery Chips */}
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pt-1">
                 <span className="font-medium text-foreground">Popular:</span>
-                {["Switchboard Repair", "Bathroom Leakage", "AC Servicing", "Door Lock", "Wall Paint"].map((kw) => (
+                {(categories.length > 0 ? categories.slice(0, 5) : [
+                  { name: "Electrician", slug: "electrician" },
+                  { name: "Plumbing", slug: "plumbing" },
+                  { name: "AC & Appliance Repair", slug: "ac-repair" },
+                  { name: "Carpentry", slug: "carpentry" },
+                  { name: "Painting & Waterproofing", slug: "painting" },
+                ]).map((cat) => (
                   <Link
-                    key={kw}
-                    href={`/workers?search=${encodeURIComponent(kw)}&city=${encodeURIComponent(selectedCity)}`}
+                    key={cat.slug}
+                    href={`/workers?skill=${encodeURIComponent(cat.name)}&city=${encodeURIComponent(selectedCity)}`}
                     className="px-2.5 py-1 rounded-md bg-muted/60 hover:bg-muted text-foreground border border-border/70 hover:border-primary/40 transition-colors"
                   >
-                    {kw}
+                    {cat.name}
                   </Link>
                 ))}
               </div>
@@ -433,24 +438,24 @@ export default function Home() {
                   {/* Worker Card Snippet */}
                   <div className="flex items-start gap-3.5">
                     <img
-                      src="https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=160&auto=format&fit=crop&q=80"
-                      alt="Mohammad Riaz"
+                      src={heroWorkerAvatar}
+                      alt={heroWorkerName}
                       className="w-14 h-14 rounded-xl object-cover border border-border shrink-0"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-foreground truncate">Mohammad Riaz</h4>
-                        <span className="text-xs font-bold text-primary">₹299/hr</span>
+                        <h4 className="text-sm font-bold text-foreground truncate">{heroWorkerName}</h4>
+                        <span className="text-xs font-bold text-primary">{heroWorkerRate}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">Master Electrician • 8 yrs exp</p>
+                      <p className="text-xs text-muted-foreground">{heroWorkerTrade} • {heroWorkerExp}</p>
 
                       <div className="flex items-center gap-2 mt-1.5 text-xs">
                         <div className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold">
                           <Star className="w-3.5 h-3.5 fill-current" />
-                          <span>4.9</span>
+                          <span>{heroWorkerRating}</span>
                         </div>
                         <span className="text-muted-foreground/40">•</span>
-                        <span className="text-muted-foreground">320 jobs</span>
+                        <span className="text-muted-foreground">{heroWorkerJobs} jobs</span>
                         <span className="text-muted-foreground/40">•</span>
                         <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Police Cleared</span>
                       </div>
@@ -470,7 +475,7 @@ export default function Home() {
                       <div className="bg-primary h-full rounded-full w-3/4 animate-pulse" />
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
-                      <span>1.4 km away • Indiranagar</span>
+                      <span>1.4 km away • {heroWorkerLocality}</span>
                       <span>GPS Radar Active</span>
                     </div>
                   </div>
@@ -614,41 +619,72 @@ export default function Home() {
 
           {/* Marketplace Category Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {MARKETPLACE_CATEGORIES.map((cat) => {
-              const Icon = cat.icon;
-              return (
-                <Link
-                  key={cat.slug}
-                  href={`/workers?skill=${encodeURIComponent(cat.name)}`}
-                  className="group p-5 rounded-xl bg-card border border-border hover:border-primary/60 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-10 h-10 rounded-lg bg-muted text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                        <Icon className="w-5 h-5" />
+            {loading && categories.length === 0 ? (
+              [...Array(8)].map((_, i) => (
+                <div key={i} className="p-5 rounded-xl bg-card border border-border animate-pulse space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-lg bg-muted" />
+                    <div className="w-16 h-4 rounded bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="w-24 h-4 rounded bg-muted" />
+                    <div className="w-full h-3 rounded bg-muted" />
+                    <div className="w-3/4 h-3 rounded bg-muted" />
+                  </div>
+                  <div className="pt-3 border-t border-border flex justify-between">
+                    <div className="w-16 h-3 rounded bg-muted" />
+                    <div className="w-16 h-3 rounded bg-muted" />
+                  </div>
+                </div>
+              ))
+            ) : (
+              categories.map((cat) => {
+                const Icon = getCategoryIcon(cat.slug, cat.name);
+                const minPrice = cat.subcategories?.length
+                  ? Math.min(...cat.subcategories.map((s) => s.basePrice || 199))
+                  : 199;
+                const count = cat.subcategories?.length
+                  ? `${cat.subcategories.length} Services`
+                  : "Standard Rate";
+                const tagline =
+                  cat.description ||
+                  cat.subcategories?.map((s) => s.name).slice(0, 3).join(", ") ||
+                  "Standard trade service";
+
+                return (
+                  <Link
+                    key={cat._id || cat.slug}
+                    href={`/workers?skill=${encodeURIComponent(cat.name)}`}
+                    className="group p-5 rounded-xl bg-card border border-border hover:border-primary/60 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-10 h-10 rounded-lg bg-muted text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs font-semibold text-foreground bg-muted px-2.5 py-0.5 rounded-md">
+                          From ₹{minPrice}
+                        </span>
                       </div>
-                      <span className="text-xs font-semibold text-foreground bg-muted px-2.5 py-0.5 rounded-md">
-                        From {cat.startingRate}
-                      </span>
+
+                      <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                        {cat.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                        {tagline}
+                      </p>
                     </div>
 
-                    <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
-                      {cat.name}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                      {cat.tagline}
-                    </p>
-                  </div>
-
-                  <div className="mt-5 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{cat.count}</span>
-                    <span className="text-primary font-medium group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                      View Pros <ChevronRight className="w-3 h-3" />
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
+                    <div className="mt-5 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{count}</span>
+                      <span className="text-primary font-medium group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                        View Pros <ChevronRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
           </div>
         </div>
       </section>
@@ -671,81 +707,118 @@ export default function Home() {
             href="/workers"
             className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 shrink-0"
           >
-            <span>Browse all 24,000+ workers</span>
+            <span>Browse all verified workers</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {VERIFIED_WORKERS.map((w) => (
-            <div
-              key={w.id}
-              className="rounded-2xl bg-card border border-border p-6 flex flex-col justify-between hover:border-primary/40 transition-colors"
-            >
-              <div>
+          {loading && workers.length === 0 ? (
+            [...Array(3)].map((_, i) => (
+              <div key={i} className="rounded-2xl bg-card border border-border p-6 animate-pulse space-y-4">
                 <div className="flex items-start gap-4">
-                  <img
-                    src={w.avatar}
-                    alt={w.name}
-                    className="w-14 h-14 rounded-full object-cover border border-border shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="font-bold text-sm text-foreground truncate">{w.name}</h3>
-                      <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{w.trade}</p>
-                    <div className="flex items-center gap-2 mt-1.5 text-xs">
-                      <div className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold">
-                        <Star className="w-3.5 h-3.5 fill-current" />
-                        <span>{w.rating}</span>
+                  <div className="w-14 h-14 rounded-full bg-muted shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="w-24 h-4 rounded bg-muted" />
+                    <div className="w-16 h-3 rounded bg-muted" />
+                    <div className="w-32 h-3 rounded bg-muted" />
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-border flex justify-between">
+                  <div className="w-20 h-3 rounded bg-muted" />
+                  <div className="w-14 h-4 rounded bg-muted" />
+                </div>
+                <div className="pt-4 border-t border-border flex gap-2">
+                  <div className="flex-1 h-8 rounded-lg bg-muted" />
+                  <div className="flex-1 h-8 rounded-lg bg-muted" />
+                </div>
+              </div>
+            ))
+          ) : (
+            workers.map((w) => {
+              const workerName = w.userId?.name || "Verified Professional";
+              const workerAvatar =
+                w.userId?.avatar ||
+                "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=160&auto=format&fit=crop&q=80";
+              const primarySkill = w.skills?.[0] || "Skilled Tradesman";
+              const rateDisplay = w.hourlyRate
+                ? `₹${w.hourlyRate}/hr`
+                : w.dailyRate
+                ? `₹${w.dailyRate}/day`
+                : "₹299/hr";
+              const location = w.serviceAreas?.join(", ") || "City Center";
+
+              return (
+                <div
+                  key={w._id}
+                  className="rounded-2xl bg-card border border-border p-6 flex flex-col justify-between hover:border-primary/40 transition-colors"
+                >
+                  <div>
+                    <div className="flex items-start gap-4">
+                      <img
+                        src={workerAvatar}
+                        alt={workerName}
+                        className="w-14 h-14 rounded-full object-cover border border-border shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold text-sm text-foreground truncate">{workerName}</h3>
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{primarySkill}</p>
+                        <div className="flex items-center gap-2 mt-1.5 text-xs">
+                          <div className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold">
+                            <Star className="w-3.5 h-3.5 fill-current" />
+                            <span>{w.rating ? w.rating.toFixed(1) : "4.8"}</span>
+                          </div>
+                          <span className="text-muted-foreground/40">•</span>
+                          <span className="text-muted-foreground">{w.totalJobs || 50} jobs</span>
+                          <span className="text-muted-foreground/40">•</span>
+                          <span className="text-muted-foreground">{w.experience || 4} yrs exp</span>
+                        </div>
                       </div>
-                      <span className="text-muted-foreground/40">•</span>
-                      <span className="text-muted-foreground">{w.jobs} jobs</span>
-                      <span className="text-muted-foreground/40">•</span>
-                      <span className="text-muted-foreground">{w.experience}</span>
+                    </div>
+
+                    <div className="mt-5 pt-3.5 border-t border-border flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1 text-muted-foreground truncate max-w-[180px]">
+                        <MapPin className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                        <span className="truncate">{location}</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-bold text-foreground text-sm">{rateDisplay}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3.5 flex flex-wrap gap-1.5">
+                      <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                        {w.status === "verified" ? "Aadhaar Verified" : "Identity Verified"}
+                      </span>
+                      <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                        Police Cleared
+                      </span>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-5 pt-3.5 border-t border-border flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <MapPin className="w-3.5 h-3.5 text-muted-foreground/70" />
-                    <span>{w.locality}, {w.city}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-foreground text-sm">{w.rate}</span>
-                  </div>
-                </div>
-
-                <div className="mt-3.5 flex flex-wrap gap-1.5">
-                  {w.badges.map((badge) => (
-                    <span
-                      key={badge}
-                      className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                  <div className="mt-6 pt-4 border-t border-border flex gap-2">
+                    <Link
+                      href={`/workers/${w._id}`}
+                      className="flex-1 py-2.5 text-center text-xs font-semibold rounded-lg border border-border hover:bg-muted text-foreground transition-colors"
                     >
-                      {badge}
-                    </span>
-                  ))}
+                      View Profile
+                    </Link>
+                    <Link
+                      href={`/book?workerId=${w._id}`}
+                      className="flex-1 py-2.5 text-center text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors shadow-xs"
+                    >
+                      Hire Worker
+                    </Link>
+                  </div>
                 </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-border flex gap-2">
-                <Link
-                  href={`/workers/${w.id}`}
-                  className="flex-1 py-2.5 text-center text-xs font-semibold rounded-lg border border-border hover:bg-muted text-foreground transition-colors"
-                >
-                  View Profile
-                </Link>
-                <Link
-                  href={`/book?workerId=${w.id}`}
-                  className="flex-1 py-2.5 text-center text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors shadow-xs"
-                >
-                  Hire Worker
-                </Link>
-              </div>
-            </div>
-          ))}
+              );
+            })
+          )}
+        </div>
+      </section>
         </div>
       </section>
 
