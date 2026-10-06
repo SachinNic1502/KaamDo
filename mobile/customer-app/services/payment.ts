@@ -67,7 +67,7 @@ export async function initiatePayment(options: PaymentOptions): Promise<void> {
     }
   } else {
     if (!order.sessionId) throw new Error("Checkout session unavailable");
-    const base = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+    const base = process.env.EXPO_PUBLIC_API_URL || "https://kaam-do-mauve.vercel.app";
     await Linking.openURL(
       `${base}/checkout/cashfree#session=${encodeURIComponent(order.sessionId)}&mode=${order.environment}`
     );

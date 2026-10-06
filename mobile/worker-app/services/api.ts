@@ -1,7 +1,7 @@
 import { getAuthToken } from "./storage";
 
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+  process.env.EXPO_PUBLIC_API_URL || "https://kaam-do-mauve.vercel.app";
 
 interface RequestOptions extends RequestInit {
   token?: string;

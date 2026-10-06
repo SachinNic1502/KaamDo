@@ -8,9 +8,8 @@ const CORS_CONFIG = {
     "http://localhost:19006", // Expo web
     "http://localhost:8081", // Android emulator
     "http://localhost:3001", // Additional dev port
-    // Add production domains when deployed
-    // "https://yourdomain.com",
-    // "https://www.yourdomain.com",
+    "https://kaam-do-mauve.vercel.app",
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : []),
   ],
   
   // Allowed methods

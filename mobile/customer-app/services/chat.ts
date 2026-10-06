@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 import * as SecureStore from "./storage";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://kaam-do-mauve.vercel.app";
 
 let socket: Socket | null = null;
 
