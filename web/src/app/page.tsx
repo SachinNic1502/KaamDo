@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/header/Header";
@@ -39,6 +39,16 @@ import {
   Sparkle,
   Briefcase,
   Loader2,
+  QrCode,
+  LocateFixed,
+  AlertTriangle,
+  Calculator,
+  Lock,
+  Flame,
+  Radio,
+  FileCheck2,
+  CreditCard,
+  UserCheck,
 } from "lucide-react";
 
 // Top Metro & Tier 1 Cities
@@ -126,6 +136,68 @@ const TRUST_METRICS = [
   { label: "Customer Satisfaction", value: "4.86 / 5.0" },
 ];
 
+// Live Social Proof Feed
+const RECENT_BOOKINGS = [
+  { user: "Vikram S.", city: "Indiranagar, Bengaluru", service: "Switchboard Overhaul", time: "3 mins ago" },
+  { user: "Pooja V.", city: "Kothrud, Pune", service: "AC Deep Servicing", time: "8 mins ago" },
+  { user: "Naveen R.", city: "Sector 62, Noida", service: "Water Pipe Leakage", time: "14 mins ago" },
+  { user: "Ananya M.", city: "Andheri West, Mumbai", service: "Door Lock Fitting", time: "19 mins ago" },
+  { user: "Girish K.", city: "Madhapur, Hyderabad", service: "Wall Texture Paint", time: "26 mins ago" },
+];
+
+// Cost Estimator Preset Definitions
+const ESTIMATOR_DATA = [
+  {
+    trade: "Electrician",
+    icon: Zap,
+    issues: [
+      { name: "Switch / Socket Sparking or Replacement", labor: "₹199 – ₹249", duration: "20–30 mins", partsPolicy: "Standard anchor/havells parts billed on store receipt." },
+      { name: "Ceiling Fan Installation / Regulator Repair", labor: "₹249 – ₹349", duration: "30–45 mins", partsPolicy: "Customer provides fan or purchased at retail bill." },
+      { name: "MCB Tripping / Main Distribution Box Fix", labor: "₹349 – ₹499", duration: "45–60 mins", partsPolicy: "MCB parts approved prior to installation." },
+      { name: "Full Room Concealed Wiring Overhaul", labor: "₹899 – ₹1,499", duration: "2–4 hours", partsPolicy: "Wires & conduit pipe billed with GST invoice." },
+    ],
+  },
+  {
+    trade: "Plumbing",
+    icon: Droplets,
+    issues: [
+      { name: "Leaking Tap, Mixer or Angle Valve Replacement", labor: "₹199 – ₹299", duration: "20–30 mins", partsPolicy: "Standard Teflon tape & washers included in service." },
+      { name: "Toilet Flush Cistern & Jet Spray Repair", labor: "₹249 – ₹399", duration: "30–40 mins", partsPolicy: "Replacement valves itemized with customer approval." },
+      { name: "Severe Drain Blockage & Pipe Descaling", labor: "₹399 – ₹599", duration: "45–60 mins", partsPolicy: "Heavy duty rotary spring machine included." },
+      { name: "Overhead Water Tank Deep Cleaning (500L–1000L)", labor: "₹699 – ₹1,199", duration: "1–2 hours", partsPolicy: "UV antibacterial sanitization spray included." },
+    ],
+  },
+  {
+    trade: "AC & Appliances",
+    icon: Wrench,
+    issues: [
+      { name: "Split AC Deep Foam Jet Servicing", labor: "₹499 – ₹699", duration: "45–60 mins", partsPolicy: "Complete indoor foam wash + outdoor condenser rinse." },
+      { name: "AC Gas Leak Detection & Full Gas Refill (R32/R410)", labor: "₹1,899 – ₹2,499", duration: "60–90 mins", partsPolicy: "Nitrogen pressure test + 100% pure refrigerant cylinder." },
+      { name: "Washing Machine Drum / Water Drain Failure", labor: "₹349 – ₹499", duration: "30–60 mins", partsPolicy: "Inlet valve/drain pump quote approved digitally." },
+      { name: "Refrigerator Cooling Coil / Thermostat Repair", labor: "₹399 – ₹599", duration: "45–60 mins", partsPolicy: "Capillary tube & relay switch billed on exact MRP." },
+    ],
+  },
+  {
+    trade: "Carpentry",
+    icon: Hammer,
+    issues: [
+      { name: "Main Door Lock / Handle / Mortise Installation", labor: "₹299 – ₹449", duration: "30–45 mins", partsPolicy: "Lock set provided by customer or bought on bill." },
+      { name: "Modular Bed / Wardrobe Assembly", labor: "₹599 – ₹999", duration: "60–120 mins", partsPolicy: "All hardware bolts and fasteners checked." },
+      { name: "Kitchen Cabinet Hydraulic Hinge Realignment", labor: "₹249 – ₹399", duration: "30–40 mins", partsPolicy: "Soft-close hinges billed at direct distributor price." },
+      { name: "Custom Wooden Wall Shelf Mounting (Per Shelf)", labor: "₹199 – ₹299", duration: "20–30 mins", partsPolicy: "Heavy-duty wall anchors and studs included." },
+    ],
+  },
+  {
+    trade: "Painting & Moisture",
+    icon: Paintbrush,
+    issues: [
+      { name: "Single Accent Wall Texture Finish", labor: "₹899 – ₹1,499", duration: "2–4 hours", partsPolicy: "Premium washable emulsion included in estimate." },
+      { name: "Bathroom Ceiling Moisture Waterproofing", labor: "₹1,199 – ₹1,799", duration: "3–5 hours", partsPolicy: "Dr. Fixit / Asian Paints dampproof coat applied." },
+      { name: "1 BHK Full Interior Repainting", labor: "₹5,999 – ₹8,999", duration: "1–2 days", partsPolicy: "Primer + 2 coats of premium acrylic emulsion." },
+    ],
+  },
+];
+
 // Target Audience Use Cases
 const USE_CASES = [
   {
@@ -202,6 +274,7 @@ const TESTIMONIALS = [
     rating: 5,
     quote: "The AC technician arrived in 22 minutes, showed his digital ID on the app, and walked me through the filter inspection before touching anything. The OTP payment meant I only approved once cooling was verified.",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80",
+    verifiedBadge: "Verified Customer • Completed Oct 2026",
   },
   {
     name: "Rajesh Kulkarni",
@@ -211,6 +284,7 @@ const TESTIMONIALS = [
     rating: 5,
     quote: "Our bathroom main inlet burst on a Sunday morning. The KaamDo plumber brought standard PVC fittings, added the exact hardware cost with the bill attached, and charged the standard rate. Truly reliable.",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80",
+    verifiedBadge: "Verified Customer • Completed Oct 2026",
   },
   {
     name: "Amit Sen",
@@ -220,6 +294,7 @@ const TESTIMONIALS = [
     rating: 5,
     quote: "We use KaamDo for our rented studio apartments. The technicians are prompt, courteous, and the rate card eliminates any disputes with tenants. Best service platform we have used in NCR.",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80",
+    verifiedBadge: "Verified Customer • Completed Oct 2026",
   },
 ];
 
@@ -247,7 +322,7 @@ const FAQS = [
   },
   {
     question: "How can I install the KaamDo Android Mobile Apps?",
-    answer: "You can download the standalone Universal Android APKs (.apk) directly from our website for both the Customer App and the Partner App. Sideloading requires enabling 'Allow from this source' in your Android Settings.",
+    answer: "You can download the standalone Universal Android APKs (.apk) directly from our website for both the Customer App and the Partner App, or scan the QR codes on this page with your smartphone camera.",
   },
 ];
 
@@ -255,11 +330,29 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [selectedCity, setSelectedCity] = useState("Bengaluru");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
+  // Location detection state
+  const [detectedLocation, setDetectedLocation] = useState<string | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+
+  // Radar Interactive Simulator State
+  const [radarStep, setRadarStep] = useState<"en_route" | "at_doorstep" | "completed">("en_route");
+
+  // Cost Estimator State
+  const [selectedTradeIndex, setSelectedTradeIndex] = useState(0);
+  const [selectedIssueIndex, setSelectedIssueIndex] = useState(0);
+
+  // Live social proof ticker index
+  const [tickerIndex, setTickerIndex] = useState(0);
+
+  // API Data
   const [categories, setCategories] = useState<Category[]>([]);
   const [workers, setWorkers] = useState<WorkerRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Load Categories & Workers from MongoDB
   useEffect(() => {
     let active = true;
     async function loadData() {
@@ -289,6 +382,72 @@ export default function Home() {
     };
   }, []);
 
+  // Close search dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Cycle social proof ticker every 4 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % RECENT_BOOKINGS.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Filtered search suggestions
+  const searchSuggestions = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return { matchingCats: [], matchingSubcats: [] };
+
+    const matchingCats = categories.filter(
+      (c) => c.name.toLowerCase().includes(query) || c.slug.toLowerCase().includes(query)
+    );
+
+    const matchingSubcats: { catName: string; catSlug: string; sub: Subcategory }[] = [];
+    categories.forEach((c) => {
+      c.subcategories?.forEach((s) => {
+        if (s.name.toLowerCase().includes(query)) {
+          matchingSubcats.push({ catName: c.name, catSlug: c.slug, sub: s });
+        }
+      });
+    });
+
+    return {
+      matchingCats: matchingCats.slice(0, 4),
+      matchingSubcats: matchingSubcats.slice(0, 5),
+    };
+  }, [search, categories]);
+
+  // Geolocation detector handler
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    setIsDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsDetectingLocation(false);
+        setDetectedLocation("Detected: Local Area GPS Active");
+      },
+      () => {
+        setIsDetectingLocation(false);
+        alert("Location access denied or unavailable. Please choose from the city list.");
+      },
+      { timeout: 7000 }
+    );
+  };
+
+  const currentEstimator = ESTIMATOR_DATA[selectedTradeIndex] || ESTIMATOR_DATA[0];
+  const currentIssue = currentEstimator.issues[selectedIssueIndex] || currentEstimator.issues[0];
+
   const heroWorker = workers[0];
   const heroWorkerName = heroWorker?.userId?.name || "Mohammad Riaz";
   const heroWorkerRate = heroWorker?.hourlyRate ? `₹${heroWorker.hourlyRate}/hr` : "₹299/hr";
@@ -303,12 +462,37 @@ export default function Home() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans antialiased selection:bg-primary/20 selection:text-primary">
       <Header />
 
+      {/* 0. LIVE SOCIAL PROOF TICKER */}
+      <div className="bg-primary/10 border-b border-primary/20 py-1.5 px-4 text-xs">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="flex h-2 w-2 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="font-semibold text-primary shrink-0 hidden sm:inline">LIVE DISPATCH STREAM:</span>
+            <span className="text-foreground font-medium truncate">
+              {RECENT_BOOKINGS[tickerIndex].user} booked {RECENT_BOOKINGS[tickerIndex].service} in {RECENT_BOOKINGS[tickerIndex].city}
+            </span>
+            <span className="text-muted-foreground shrink-0 text-[11px]">({RECENT_BOOKINGS[tickerIndex].time})</span>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 text-muted-foreground text-[11px] hidden md:flex">
+            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5" /> 100% Aadhaar Verified
+            </span>
+            <span>•</span>
+            <span>Escrow Protected</span>
+          </div>
+        </div>
+      </div>
+
       {/* 1. HERO SECTION: Focused Value Proposition + Live Interface Anchor */}
       <section className="relative border-b border-border bg-gradient-to-b from-muted/30 via-background to-background pt-12 pb-16 sm:pt-16 sm:pb-24 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
 
-            {/* Left Column: Headline, Value Proposition, Search */}
+            {/* Left Column: Headline, Value Proposition, Unified Search */}
             <div className="lg:col-span-7 space-y-6">
               {/* Trust Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold">
@@ -331,52 +515,162 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Unified Search Engine */}
-              <div className="bg-card border border-border rounded-xl p-2 shadow-sm max-w-2xl transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    window.location.href = `/workers?search=${encodeURIComponent(search)}&city=${encodeURIComponent(selectedCity)}`;
-                  }}
-                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
-                >
-                  {/* Service Input */}
-                  <div className="flex-1 flex items-center gap-2.5 px-3 py-2 border-b sm:border-b-0 sm:border-r border-border">
-                    <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <input
-                      type="text"
-                      placeholder="What service do you need? (e.g. Electrician, AC Repair)"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
-                    />
-                  </div>
-
-                  {/* City Selector */}
-                  <div className="flex items-center gap-2 px-3 py-2 border-b sm:border-b-0 border-border min-w-[140px]">
-                    <MapPin className="w-4 h-4 text-primary shrink-0" />
-                    <select
-                      value={selectedCity}
-                      onChange={(e) => setSelectedCity(e.target.value)}
-                      className="w-full text-xs sm:text-sm bg-transparent text-foreground font-medium focus:outline-none cursor-pointer"
-                    >
-                      {POPULAR_CITIES.map((c) => (
-                        <option key={c} value={c} className="bg-background text-foreground">
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Primary Submit */}
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-xs"
+              {/* Unified Search Engine with Live Autocomplete */}
+              <div ref={searchContainerRef} className="relative max-w-2xl">
+                <div className="bg-card border border-border rounded-xl p-2 shadow-sm transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setShowSearchDropdown(false);
+                      window.location.href = `/workers?search=${encodeURIComponent(search)}&city=${encodeURIComponent(selectedCity)}`;
+                    }}
+                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
                   >
-                    <span>Find Workers</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </form>
+                    {/* Service Input */}
+                    <div className="flex-1 flex items-center gap-2.5 px-3 py-2 border-b sm:border-b-0 sm:border-r border-border">
+                      <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="What service do you need? (e.g. Electrician, AC Repair)"
+                        value={search}
+                        onFocus={() => setShowSearchDropdown(true)}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setShowSearchDropdown(true);
+                        }}
+                        className="w-full text-xs sm:text-sm bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
+                      />
+                    </div>
+
+                    {/* City Selector with Geolocation Auto-Detect */}
+                    <div className="flex items-center gap-1.5 px-3 py-2 border-b sm:border-b-0 border-border min-w-[150px]">
+                      <MapPin className="w-4 h-4 text-primary shrink-0" />
+                      <select
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                        className="w-full text-xs sm:text-sm bg-transparent text-foreground font-medium focus:outline-none cursor-pointer"
+                      >
+                        {POPULAR_CITIES.map((c) => (
+                          <option key={c} value={c} className="bg-background text-foreground">
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        title="Detect your current location"
+                        className="p-1 text-muted-foreground hover:text-primary rounded hover:bg-muted transition-colors shrink-0"
+                      >
+                        <LocateFixed className={`w-3.5 h-3.5 ${isDetectingLocation ? "animate-spin text-primary" : ""}`} />
+                      </button>
+                    </div>
+
+                    {/* Primary Submit */}
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+                    >
+                      <span>Find Workers</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </form>
+                </div>
+
+                {/* Geolocation feedback badge */}
+                {detectedLocation && (
+                  <div className="mt-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 px-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>{detectedLocation} in {selectedCity}</span>
+                  </div>
+                )}
+
+                {/* Live Autocomplete Dropdown */}
+                {showSearchDropdown && search.trim().length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-border">
+                    {/* Matching Categories */}
+                    {searchSuggestions.matchingCats.length > 0 && (
+                      <div className="p-3">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block mb-1.5 px-1">
+                          Trade Categories
+                        </span>
+                        <div className="space-y-1">
+                          {searchSuggestions.matchingCats.map((cat) => {
+                            const Icon = getCategoryIcon(cat.slug, cat.name);
+                            return (
+                              <Link
+                                key={cat._id || cat.slug}
+                                href={`/workers?skill=${encodeURIComponent(cat.name)}&city=${encodeURIComponent(selectedCity)}`}
+                                onClick={() => setShowSearchDropdown(false)}
+                                className="flex items-center justify-between p-2 rounded-lg hover:bg-muted text-xs font-medium text-foreground transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-6 h-6 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                    <Icon className="w-3.5 h-3.5" />
+                                  </div>
+                                  <span>{cat.name}</span>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {cat.subcategories?.length || 0} services
+                                </span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Matching Subcategories / Specific Fixes */}
+                    {searchSuggestions.matchingSubcats.length > 0 && (
+                      <div className="p-3">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block mb-1.5 px-1">
+                          Specific Repair Services
+                        </span>
+                        <div className="space-y-1">
+                          {searchSuggestions.matchingSubcats.map(({ catName, sub }) => (
+                            <Link
+                              key={sub._id}
+                              href={`/book?service=${encodeURIComponent(sub.name)}&city=${encodeURIComponent(selectedCity)}`}
+                              onClick={() => setShowSearchDropdown(false)}
+                              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted text-xs text-foreground transition-colors"
+                            >
+                              <div>
+                                <p className="font-semibold">{sub.name}</p>
+                                <p className="text-[10px] text-muted-foreground">{catName}</p>
+                              </div>
+                              <span className="text-xs font-bold text-primary">
+                                From ₹{sub.basePrice}
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {searchSuggestions.matchingCats.length === 0 && searchSuggestions.matchingSubcats.length === 0 && (
+                      <div className="p-4 text-center text-xs text-muted-foreground">
+                        No direct service matches for &quot;{search}&quot;. Press &quot;Find Workers&quot; to search all certified pros.
+                      </div>
+                    )}
+
+                    {/* Footer query trigger */}
+                    <div className="p-2.5 bg-muted/30 flex justify-between items-center text-xs px-3">
+                      <span className="text-muted-foreground text-[11px]">
+                        Press Enter to search all in <strong className="text-foreground">{selectedCity}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSearchDropdown(false);
+                          window.location.href = `/workers?search=${encodeURIComponent(search)}&city=${encodeURIComponent(selectedCity)}`;
+                        }}
+                        className="text-primary font-semibold hover:underline text-[11px]"
+                      >
+                        Search All &rarr;
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Popular Discovery Chips */}
@@ -407,28 +701,70 @@ export default function Home() {
                 >
                   Post a Job Request
                 </Link>
-                <Link
-                  href="/services"
-                  className="px-5 py-2.5 rounded-lg border border-border bg-background hover:bg-muted text-foreground text-xs sm:text-sm font-semibold transition-colors"
+                <a
+                  href="#cost-estimator"
+                  className="px-5 py-2.5 rounded-lg border border-border bg-background hover:bg-muted text-foreground text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5"
                 >
-                  Explore Rate Cards
-                </Link>
+                  <Calculator className="w-3.5 h-3.5 text-primary" />
+                  <span>Cost Calculator</span>
+                </a>
               </div>
             </div>
 
-            {/* Right Column: Live Product Preview Anchor (Authentic Dispatch Interface) */}
+            {/* Right Column: Interactive Dispatch Radar Simulator */}
             <div className="lg:col-span-5">
               <div className="relative mx-auto max-w-md">
                 {/* Visual Decorative Glow */}
                 <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/20 via-blue-500/10 to-primary/20 blur-xl opacity-60" />
 
-                {/* Main Mockup Card */}
-                <div className="relative bg-card border border-border/80 rounded-2xl p-6 shadow-xl space-y-5">
+                {/* Main Radar Simulation Card */}
+                <div className="relative bg-card border border-border/80 rounded-2xl p-6 shadow-xl space-y-4">
+                  {/* Interactive Phase Toggle Tabs */}
+                  <div className="flex rounded-lg bg-muted p-1 gap-1 text-[11px] font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setRadarStep("en_route")}
+                      className={`flex-1 py-1 px-2 rounded-md transition-all ${
+                        radarStep === "en_route"
+                          ? "bg-background text-primary shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      1. En Route
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRadarStep("at_doorstep")}
+                      className={`flex-1 py-1 px-2 rounded-md transition-all ${
+                        radarStep === "at_doorstep"
+                          ? "bg-background text-primary shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      2. At Doorstep
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRadarStep("completed")}
+                      className={`flex-1 py-1 px-2 rounded-md transition-all ${
+                        radarStep === "completed"
+                          ? "bg-background text-primary shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      3. Completed
+                    </button>
+                  </div>
+
                   {/* Dispatch Header */}
-                  <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div className="flex items-center justify-between pb-2 border-b border-border">
                     <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-xs font-bold text-foreground">LIVE DISPATCH RADAR</span>
+                      <div className={`w-2.5 h-2.5 rounded-full ${radarStep === "completed" ? "bg-emerald-500" : "bg-emerald-500 animate-pulse"}`} />
+                      <span className="text-xs font-bold text-foreground">
+                        {radarStep === "en_route" && "LIVE RADAR DISPATCH"}
+                        {radarStep === "at_doorstep" && "DOORSTEP ARRIVAL VERIFIED"}
+                        {radarStep === "completed" && "JOB INSPECTED & ESCROW RELEASED"}
+                      </span>
                     </div>
                     <span className="text-[11px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
                       #KD-8921
@@ -462,35 +798,77 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Real-time Status Tracker */}
-                  <div className="p-3.5 rounded-xl bg-muted/50 border border-border space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-foreground flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-primary" />
-                        Technician En Route
-                      </span>
-                      <span className="font-bold text-primary">Arriving in 14 mins</span>
+                  {/* Dynamic Status Tracker Based on Simulator State */}
+                  {radarStep === "en_route" && (
+                    <div className="p-3.5 rounded-xl bg-muted/50 border border-border space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-foreground flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-primary" />
+                          Technician En Route
+                        </span>
+                        <span className="font-bold text-primary">Arriving in 14 mins</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-primary h-full rounded-full w-3/4 animate-pulse" />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                        <span>1.4 km away • {heroWorkerLocality}</span>
+                        <span>GPS Radar Active</span>
+                      </div>
                     </div>
-                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-primary h-full rounded-full w-3/4 animate-pulse" />
+                  )}
+
+                  {radarStep === "at_doorstep" && (
+                    <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          Doorstep Identity Authenticated
+                        </span>
+                        <span className="font-bold text-foreground">Timer: 00:32:15</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Arrival OTP matched. Digital ID photo confirmed. Work underway for Switchboard repair.
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
-                      <span>1.4 km away • {heroWorkerLocality}</span>
-                      <span>GPS Radar Active</span>
+                  )}
+
+                  {radarStep === "completed" && (
+                    <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-primary flex items-center gap-1.5">
+                          <Award className="w-3.5 h-3.5 text-primary" />
+                          Payment Settled via Escrow
+                        </span>
+                        <span className="font-bold text-foreground">Total: ₹498</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                        <span>Labor ₹299 + Itemized Parts ₹199</span>
+                        <span className="text-emerald-600 font-semibold">Warranty Active ✓</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Dual-OTP Security Banner */}
                   <div className="grid grid-cols-2 gap-2 pt-1 text-center">
-                    <div className="p-2.5 rounded-lg border border-primary/20 bg-primary/5">
+                    <div className={`p-2.5 rounded-lg border ${radarStep === "en_route" ? "border-primary/30 bg-primary/5" : "border-emerald-500/30 bg-emerald-500/5"}`}>
                       <span className="text-[10px] uppercase font-bold text-primary block">Arrival OTP</span>
-                      <span className="text-base font-mono font-bold tracking-widest text-foreground">4892</span>
-                      <span className="text-[10px] text-muted-foreground block">Share at doorstep</span>
+                      <span className="text-base font-mono font-bold tracking-widest text-foreground">
+                        {radarStep === "en_route" ? "4892" : "4892 ✓"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        {radarStep === "en_route" ? "Share at doorstep" : "Verified & Accepted"}
+                      </span>
                     </div>
-                    <div className="p-2.5 rounded-lg border border-border bg-card">
+
+                    <div className={`p-2.5 rounded-lg border ${radarStep === "completed" ? "border-primary/30 bg-primary/5" : "border-border bg-card"}`}>
                       <span className="text-[10px] uppercase font-bold text-muted-foreground block">Completion OTP</span>
-                      <span className="text-base font-mono font-bold tracking-widest text-muted-foreground">••••</span>
-                      <span className="text-[10px] text-muted-foreground block">Share after inspection</span>
+                      <span className={`text-base font-mono font-bold tracking-widest ${radarStep === "completed" ? "text-primary" : "text-muted-foreground"}`}>
+                        {radarStep === "completed" ? "8194 ✓" : "••••"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        {radarStep === "completed" ? "Escrow Released" : "Share after inspection"}
+                      </span>
                     </div>
                   </div>
 
@@ -519,29 +897,36 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 2. TRUST & BRAND INDICATORS */}
-      <section className="py-8 bg-muted/20 border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-6">
-            Operating under India&apos;s most stringent workforce verification standards
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
-            <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-center justify-center gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-xs font-semibold text-foreground">Aadhaar Biometric KYC</span>
+      {/* 2. URGENT EMERGENCY DISPATCH STRIP */}
+      <section className="bg-gradient-to-r from-amber-500/10 via-red-500/10 to-amber-500/10 border-b border-amber-500/20 py-4 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 animate-pulse" />
             </div>
-            <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-center justify-center gap-2.5">
-              <Award className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="text-xs font-semibold text-foreground">Police Background Checked</span>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-2">
+                <span>⚡ Urgent Home Emergency? Power blackout, burst water pipe, or short circuit?</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Priority SOS dispatch arrives in &lt;25 minutes with verified rapid-response technicians.
+              </p>
             </div>
-            <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-center justify-center gap-2.5">
-              <BadgePercent className="w-4 h-4 text-amber-600 shrink-0" />
-              <span className="text-xs font-semibold text-foreground">Standard Fixed Rate Cards</span>
-            </div>
-            <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-center justify-center gap-2.5">
-              <PhoneCall className="w-4 h-4 text-blue-600 shrink-0" />
-              <span className="text-xs font-semibold text-foreground">7-Day Free Rework Warranty</span>
-            </div>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Link
+              href="/book?urgency=emergency"
+              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs transition-colors shadow-xs"
+            >
+              Emergency SOS Booking
+            </Link>
+            <a
+              href="tel:9876543210"
+              className="px-3 py-2 rounded-lg border border-border bg-card hover:bg-muted text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors"
+            >
+              <PhoneCall className="w-3.5 h-3.5 text-primary" />
+              <span>+91 98765 43210</span>
+            </a>
           </div>
         </div>
       </section>
@@ -593,7 +978,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4. SERVICE CATALOG: Explore By Trade */}
+      {/* 4. SERVICE CATALOG: Explore By Trade + Quick Subcategory Booking Chips */}
       <section className="py-16 bg-muted/20 border-y border-border" id="services">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
@@ -605,7 +990,7 @@ export default function Home() {
                 Standard rate cards by trade
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Transparent base pricing. Zero surge multipliers. All hardware parts billed with customer approval.
+                Transparent base pricing. Zero surge multipliers. Click any service chip to instantly start booking.
               </p>
             </div>
             <Link
@@ -618,9 +1003,9 @@ export default function Home() {
           </div>
 
           {/* Marketplace Category Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading && categories.length === 0 ? (
-              [...Array(8)].map((_, i) => (
+              [...Array(6)].map((_, i) => (
                 <div key={i} className="p-5 rounded-xl bg-card border border-border animate-pulse space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="w-10 h-10 rounded-lg bg-muted" />
@@ -629,11 +1014,6 @@ export default function Home() {
                   <div className="space-y-2">
                     <div className="w-24 h-4 rounded bg-muted" />
                     <div className="w-full h-3 rounded bg-muted" />
-                    <div className="w-3/4 h-3 rounded bg-muted" />
-                  </div>
-                  <div className="pt-3 border-t border-border flex justify-between">
-                    <div className="w-16 h-3 rounded bg-muted" />
-                    <div className="w-16 h-3 rounded bg-muted" />
                   </div>
                 </div>
               ))
@@ -643,45 +1023,61 @@ export default function Home() {
                 const minPrice = cat.subcategories?.length
                   ? Math.min(...cat.subcategories.map((s) => s.basePrice || 199))
                   : 199;
-                const count = cat.subcategories?.length
-                  ? `${cat.subcategories.length} Services`
-                  : "Standard Rate";
-                const tagline =
-                  cat.description ||
-                  cat.subcategories?.map((s) => s.name).slice(0, 3).join(", ") ||
-                  "Standard trade service";
 
                 return (
-                  <Link
+                  <div
                     key={cat._id || cat.slug}
-                    href={`/workers?skill=${encodeURIComponent(cat.name)}`}
-                    className="group p-5 rounded-xl bg-card border border-border hover:border-primary/60 transition-all flex flex-col justify-between"
+                    className="p-5 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <div className="w-10 h-10 rounded-lg bg-muted text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                           <Icon className="w-5 h-5" />
                         </div>
-                        <span className="text-xs font-semibold text-foreground bg-muted px-2.5 py-0.5 rounded-md">
+                        <span className="text-xs font-bold text-foreground bg-muted px-2.5 py-1 rounded-md">
                           From ₹{minPrice}
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                      <h3 className="font-bold text-base text-foreground">
                         {cat.name}
                       </h3>
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                        {tagline}
+                        {cat.description || "Standard verified trade service."}
                       </p>
+
+                      {/* Quick-Action Subcategory Chips */}
+                      {cat.subcategories && cat.subcategories.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-border space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                            Popular Quick Fixes:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {cat.subcategories.slice(0, 3).map((sub) => (
+                              <Link
+                                key={sub._id}
+                                href={`/book?category=${cat.slug}&service=${encodeURIComponent(sub.name)}`}
+                                className="px-2 py-1 rounded-md bg-muted/60 hover:bg-primary hover:text-primary-foreground text-[11px] font-medium text-foreground transition-colors border border-border/70"
+                              >
+                                {sub.name} • ₹{sub.basePrice}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-5 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{count}</span>
-                      <span className="text-primary font-medium group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                        View Pros <ChevronRight className="w-3 h-3" />
-                      </span>
+                      <span>{cat.subcategories?.length || 0} Standard Services</span>
+                      <Link
+                        href={`/workers?skill=${encodeURIComponent(cat.name)}`}
+                        className="text-primary font-medium hover:underline flex items-center gap-0.5"
+                      >
+                        <span>View Pros</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
-                  </Link>
+                  </div>
                 );
               })
             )}
@@ -689,138 +1085,338 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 5. VERIFIED WORKERS SPOTLIGHT */}
-      <section className="py-16 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 w-full" id="workers">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-primary">
-              Verified Directory
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-1">
-              Highest-rated local technicians available for booking
-            </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Biometric Aadhaar authenticated, police cleared, and equipped with verified job track records.
-            </p>
-          </div>
-          <Link
-            href="/workers"
-            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 shrink-0"
-          >
-            <span>Browse all verified workers</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
+      {/* 5. INTERACTIVE COST ESTIMATOR WIDGET */}
+      <section className="py-16 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 w-full" id="cost-estimator">
+        <div className="max-w-2xl mb-10">
+          <span className="text-xs font-bold uppercase tracking-wider text-primary">
+            Upfront Transparency
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-1">
+            Instant Repair Cost Estimator
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            Know what you pay before booking. Standard labor rates, estimated duration, and zero hidden parts markups.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {loading && workers.length === 0 ? (
-            [...Array(3)].map((_, i) => (
-              <div key={i} className="rounded-2xl bg-card border border-border p-6 animate-pulse space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-full bg-muted shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <div className="w-24 h-4 rounded bg-muted" />
-                    <div className="w-16 h-3 rounded bg-muted" />
-                    <div className="w-32 h-3 rounded bg-muted" />
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Trade Selector & Issue Selector */}
+          <div className="lg:col-span-7 space-y-5">
+            {/* Trade Pills */}
+            <div className="flex flex-wrap gap-2">
+              {ESTIMATOR_DATA.map((t, idx) => {
+                const Icon = t.icon;
+                const isSelected = selectedTradeIndex === idx;
+                return (
+                  <button
+                    key={t.trade}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTradeIndex(idx);
+                      setSelectedIssueIndex(0);
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-card border border-border text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{t.trade}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Issues List for Selected Trade */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-foreground block">
+                Select Specific Issue or Requirement:
+              </span>
+              <div className="grid grid-cols-1 gap-2.5">
+                {currentEstimator.issues.map((iss, iIdx) => {
+                  const isChosen = selectedIssueIndex === iIdx;
+                  return (
+                    <button
+                      key={iss.name}
+                      type="button"
+                      onClick={() => setSelectedIssueIndex(iIdx)}
+                      className={`w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm transition-all flex items-center justify-between gap-4 cursor-pointer ${
+                        isChosen
+                          ? "border-primary bg-primary/5 text-foreground font-semibold shadow-xs"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isChosen ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground"}`}>
+                          {isChosen && <Check className="w-2.5 h-2.5" />}
+                        </div>
+                        <span>{iss.name}</span>
+                      </div>
+                      <span className="font-bold text-primary shrink-0">{iss.labor}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Breakdown & Live Calculation Card */}
+          <div className="lg:col-span-5">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-md space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                  Official Rate Card Breakdown
+                </span>
+                <span className="text-[11px] font-mono text-muted-foreground">Standard Tier</span>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-foreground">{currentIssue.name}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{currentEstimator.trade} Department</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Estimated Base Labor Rate:</span>
+                  <span className="font-bold text-base text-foreground">{currentIssue.labor}</span>
                 </div>
-                <div className="pt-3 border-t border-border flex justify-between">
-                  <div className="w-20 h-3 rounded bg-muted" />
-                  <div className="w-14 h-4 rounded bg-muted" />
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Typical Job Duration:</span>
+                  <span className="font-semibold text-foreground flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-primary" /> {currentIssue.duration}
+                  </span>
                 </div>
-                <div className="pt-4 border-t border-border flex gap-2">
-                  <div className="flex-1 h-8 rounded-lg bg-muted" />
-                  <div className="flex-1 h-8 rounded-lg bg-muted" />
+                <div className="pt-2 border-t border-border/80 text-[11px] text-muted-foreground">
+                  <strong className="text-foreground">Spare Parts Policy:</strong> {currentIssue.partsPolicy}
                 </div>
               </div>
-            ))
-          ) : (
-            workers.map((w) => {
-              const workerName = w.userId?.name || "Verified Professional";
-              const workerAvatar =
-                w.userId?.avatar ||
-                "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=160&auto=format&fit=crop&q=80";
-              const primarySkill = w.skills?.[0] || "Skilled Tradesman";
-              const rateDisplay = w.hourlyRate
-                ? `₹${w.hourlyRate}/hr`
-                : w.dailyRate
-                ? `₹${w.dailyRate}/day`
-                : "₹299/hr";
-              const location = w.serviceAreas?.join(", ") || "City Center";
 
-              return (
-                <div
-                  key={w._id}
-                  className="rounded-2xl bg-card border border-border p-6 flex flex-col justify-between hover:border-primary/40 transition-colors"
-                >
-                  <div>
-                    <div className="flex items-start gap-4">
-                      <img
-                        src={workerAvatar}
-                        alt={workerName}
-                        className="w-14 h-14 rounded-full object-cover border border-border shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="font-bold text-sm text-foreground truncate">{workerName}</h3>
-                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{primarySkill}</p>
-                        <div className="flex items-center gap-2 mt-1.5 text-xs">
-                          <div className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold">
-                            <Star className="w-3.5 h-3.5 fill-current" />
-                            <span>{w.rating ? w.rating.toFixed(1) : "4.8"}</span>
-                          </div>
-                          <span className="text-muted-foreground/40">•</span>
-                          <span className="text-muted-foreground">{w.totalJobs || 50} jobs</span>
-                          <span className="text-muted-foreground/40">•</span>
-                          <span className="text-muted-foreground">{w.experience || 4} yrs exp</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 pt-3.5 border-t border-border flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1 text-muted-foreground truncate max-w-[180px]">
-                        <MapPin className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
-                        <span className="truncate">{location}</span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="font-bold text-foreground text-sm">{rateDisplay}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3.5 flex flex-wrap gap-1.5">
-                      <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                        {w.status === "verified" ? "Aadhaar Verified" : "Identity Verified"}
-                      </span>
-                      <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
-                        Police Cleared
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t border-border flex gap-2">
-                    <Link
-                      href={`/workers/${w._id}`}
-                      className="flex-1 py-2.5 text-center text-xs font-semibold rounded-lg border border-border hover:bg-muted text-foreground transition-colors"
-                    >
-                      View Profile
-                    </Link>
-                    <Link
-                      href={`/book?workerId=${w._id}`}
-                      className="flex-1 py-2.5 text-center text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors shadow-xs"
-                    >
-                      Hire Worker
-                    </Link>
-                  </div>
+              <div className="space-y-2 pt-1 text-xs">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium text-[11px]">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>7-Day Free Corrective Warranty Included</span>
                 </div>
-              );
-            })
-          )}
+                <div className="flex items-center gap-2 text-primary font-medium text-[11px]">
+                  <Lock className="w-3.5 h-3.5 shrink-0" />
+                  <span>Payment held in Escrow until completion OTP</span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border flex gap-3">
+                <Link
+                  href={`/book?category=${encodeURIComponent(currentEstimator.trade)}&service=${encodeURIComponent(currentIssue.name)}`}
+                  className="flex-1 py-3 text-center bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs rounded-xl transition-colors shadow-xs"
+                >
+                  Book This Service
+                </Link>
+                <Link
+                  href={`/workers?skill=${encodeURIComponent(currentEstimator.trade)}`}
+                  className="py-3 px-4 text-center border border-border hover:bg-muted text-foreground font-semibold text-xs rounded-xl transition-colors"
+                >
+                  View Pros
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* 6. HOW KAAMDO WORKS: 3-Step Clear Flow */}
+      {/* 6. VERIFIED WORKERS SPOTLIGHT */}
+      <section className="py-16 sm:py-20 bg-muted/20 border-y border-border" id="workers">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                Verified Directory
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-1">
+                Highest-rated local technicians available for booking
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Biometric Aadhaar authenticated, police cleared, and equipped with verified job track records.
+              </p>
+            </div>
+            <Link
+              href="/workers"
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 shrink-0"
+            >
+              <span>Browse all verified workers</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {loading && workers.length === 0 ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className="rounded-2xl bg-card border border-border p-6 animate-pulse space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-full bg-muted shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="w-24 h-4 rounded bg-muted" />
+                      <div className="w-16 h-3 rounded bg-muted" />
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-border flex justify-between">
+                    <div className="w-20 h-3 rounded bg-muted" />
+                    <div className="w-14 h-4 rounded bg-muted" />
+                  </div>
+                </div>
+              ))
+            ) : (
+              workers.map((w) => {
+                const workerName = w.userId?.name || "Verified Professional";
+                const workerAvatar =
+                  w.userId?.avatar ||
+                  "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=160&auto=format&fit=crop&q=80";
+                const primarySkill = w.skills?.[0] || "Skilled Tradesman";
+                const rateDisplay = w.hourlyRate
+                  ? `₹${w.hourlyRate}/hr`
+                  : w.dailyRate
+                  ? `₹${w.dailyRate}/day`
+                  : "₹299/hr";
+                const location = w.serviceAreas?.join(", ") || "City Center";
+
+                return (
+                  <div
+                    key={w._id}
+                    className="rounded-2xl bg-card border border-border p-6 flex flex-col justify-between hover:border-primary/40 transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-start gap-4">
+                        <div className="relative shrink-0">
+                          <img
+                            src={workerAvatar}
+                            alt={workerName}
+                            className="w-14 h-14 rounded-full object-cover border border-border"
+                          />
+                          {w.isOnline && (
+                            <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-background rounded-full" title="Available Online Now" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-bold text-sm text-foreground truncate">{workerName}</h3>
+                            <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{primarySkill}</p>
+                          <div className="flex items-center gap-2 mt-1.5 text-xs">
+                            <div className="flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold">
+                              <Star className="w-3.5 h-3.5 fill-current" />
+                              <span>{w.rating ? w.rating.toFixed(1) : "4.8"}</span>
+                            </div>
+                            <span className="text-muted-foreground/40">•</span>
+                            <span className="text-muted-foreground">{w.totalJobs || 50} jobs</span>
+                            <span className="text-muted-foreground/40">•</span>
+                            <span className="text-muted-foreground">{w.experience || 4} yrs exp</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 pt-3.5 border-t border-border flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1 text-muted-foreground truncate max-w-[180px]">
+                          <MapPin className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                          <span className="truncate">{location}</span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="font-bold text-foreground text-sm">{rateDisplay}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3.5 flex flex-wrap gap-1.5">
+                        <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                          {w.status === "verified" ? "Aadhaar Verified" : "Identity Verified"}
+                        </span>
+                        <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                          Police Cleared
+                        </span>
+                        <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-muted text-muted-foreground border border-border">
+                          ⚡ Responds &lt; 15 mins
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-border flex gap-2">
+                      <Link
+                        href={`/workers/${w._id}`}
+                        className="flex-1 py-2.5 text-center text-xs font-semibold rounded-lg border border-border hover:bg-muted text-foreground transition-colors"
+                      >
+                        View Profile
+                      </Link>
+                      <Link
+                        href={`/book?workerId=${w._id}`}
+                        className="flex-1 py-2.5 text-center text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors shadow-xs"
+                      >
+                        Hire Worker
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 7. ESCROW & SAFETY PROTOCOL: 4-Step Customer Protection */}
+      <section className="py-16 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 w-full">
+        <div className="max-w-2xl mb-12">
+          <span className="text-xs font-bold uppercase tracking-wider text-primary">
+            Escrow Security
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-1">
+            How your money & home remain 100% safe
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            Payment is never handed to a stranger upfront. Funds stay protected in digital escrow until you inspect and approve the repair.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="p-6 rounded-2xl bg-card border border-border space-y-3 relative">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+              01
+            </div>
+            <h3 className="font-bold text-base text-foreground">Escrow Reservation</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              When booking, your service amount is safely reserved in digital escrow. The technician does NOT receive payment upfront.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-card border border-border space-y-3 relative">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+              02
+            </div>
+            <h3 className="font-bold text-base text-foreground">Arrival OTP Verification</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Technician reaches your doorstep. You check their digital photo ID on your screen and share the Arrival OTP to initiate the timer.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-card border border-border space-y-3 relative">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+              03
+            </div>
+            <h3 className="font-bold text-base text-foreground">Parts Approval in App</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              If spare parts are needed, the worker uploads the store receipt. You must review and digitally authorize the cost before purchase.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-card border border-border space-y-3 relative">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+              04
+            </div>
+            <h3 className="font-bold text-base text-foreground">Inspection & Release OTP</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Inspect the completed repair. Only when satisfied, share the Completion OTP to release funds. Backed by our 7-day rework guarantee.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 8. HOW KAAMDO WORKS: 3-Step Clear Flow */}
       <section className="py-16 sm:py-20 bg-muted/20 border-y border-border" id="how-it-works">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full">
           <div className="max-w-2xl mb-12">
@@ -875,7 +1471,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 7. USE CASES: Who KaamDo Serves */}
+      {/* 9. USE CASES: Who KaamDo Serves */}
       <section className="py-16 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 w-full">
         <div className="max-w-2xl mb-12">
           <span className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -922,7 +1518,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 8. COMPARISON MATRIX: Why KaamDo Stands Out */}
+      {/* 10. COMPARISON MATRIX: Why KaamDo Stands Out (Responsive Card + Table View) */}
       <section className="py-16 sm:py-20 bg-muted/20 border-y border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl mb-12">
@@ -937,37 +1533,38 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-xs">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-border bg-card shadow-xs">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="py-3.5 px-4 sm:px-6 font-bold text-foreground">Key Feature</th>
-                  <th className="py-3.5 px-4 sm:px-6 font-bold text-primary bg-primary/5">
+                  <th className="py-3.5 px-6 font-bold text-foreground">Key Feature</th>
+                  <th className="py-3.5 px-6 font-bold text-primary bg-primary/5">
                     KaamDo Platform
                   </th>
-                  <th className="py-3.5 px-4 sm:px-6 font-medium text-muted-foreground">Local Unverified Worker</th>
-                  <th className="py-3.5 px-4 sm:px-6 font-medium text-muted-foreground">Generic Aggregators</th>
+                  <th className="py-3.5 px-6 font-medium text-muted-foreground">Local Unverified Worker</th>
+                  <th className="py-3.5 px-6 font-medium text-muted-foreground">Generic Aggregators</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {COMPARISON_ROWS.map((row) => (
                   <tr key={row.feature} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-3.5 px-4 sm:px-6 font-semibold text-foreground">
+                    <td className="py-3.5 px-6 font-semibold text-foreground">
                       {row.feature}
                     </td>
-                    <td className="py-3.5 px-4 sm:px-6 font-medium text-foreground bg-primary/5">
+                    <td className="py-3.5 px-6 font-medium text-foreground bg-primary/5">
                       <div className="flex items-center gap-1.5 text-primary font-bold">
                         <Check className="w-4 h-4 text-primary shrink-0" />
                         <span>{row.kaamdo}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 sm:px-6 text-muted-foreground">
+                    <td className="py-3.5 px-6 text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         <X className="w-4 h-4 text-destructive shrink-0" />
                         <span>{row.local}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 sm:px-6 text-muted-foreground">
+                    <td className="py-3.5 px-6 text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         <span className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[10px] shrink-0">•</span>
                         <span>{row.aggregator}</span>
@@ -978,10 +1575,36 @@ export default function Home() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Accordion/Cards View */}
+          <div className="md:hidden space-y-4">
+            {COMPARISON_ROWS.map((row) => (
+              <div key={row.feature} className="p-4 rounded-xl border border-border bg-card space-y-2.5">
+                <p className="font-bold text-xs text-foreground">{row.feature}</p>
+                <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20 flex items-start gap-2 text-xs text-primary font-semibold">
+                  <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-primary block">KaamDo</span>
+                    <span>{row.kaamdo}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground pt-1">
+                  <div className="p-2 rounded-lg bg-muted/40">
+                    <span className="font-bold text-[10px] text-foreground block">Roadside Worker</span>
+                    <span>{row.local}</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-muted/40">
+                    <span className="font-bold text-[10px] text-foreground block">Aggregator Apps</span>
+                    <span>{row.aggregator}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* 9. TESTIMONIALS: Real Verified Customer Feedback */}
+      {/* 11. TESTIMONIALS: Real Verified Customer Feedback */}
       <section className="py-16 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 w-full">
         <div className="max-w-2xl mb-12">
           <span className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -1012,16 +1635,22 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-border flex items-center gap-3">
-                <img
-                  src={t.avatar}
-                  alt={t.name}
-                  className="w-10 h-10 rounded-full object-cover border border-border shrink-0"
-                />
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">{t.name}</h4>
-                  <p className="text-[11px] text-muted-foreground">{t.role} • {t.city}</p>
-                  <span className="text-[10px] text-primary font-semibold">{t.service}</span>
+              <div className="pt-4 border-t border-border space-y-2">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={t.avatar}
+                    alt={t.name}
+                    className="w-10 h-10 rounded-full object-cover border border-border shrink-0"
+                  />
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">{t.name}</h4>
+                    <p className="text-[11px] text-muted-foreground">{t.role} • {t.city}</p>
+                    <span className="text-[10px] text-primary font-semibold">{t.service}</span>
+                  </div>
+                </div>
+                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 pt-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>{t.verifiedBadge}</span>
                 </div>
               </div>
             </div>
@@ -1029,7 +1658,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 10. MOBILE APPS SHOWCASE BANNER */}
+      {/* 12. MOBILE APPS SHOWCASE BANNER WITH SCANNABLE QR CODES */}
       <section className="py-16 bg-muted/20 border-y border-border" id="download-apps">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
@@ -1041,7 +1670,7 @@ export default function Home() {
                 Install KaamDo Android Mobile Apps
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl">
-                Real-time proximity dispatch, live GPS navigation, in-app technician chat, and instant payouts on your smartphone.
+                Real-time proximity dispatch, live GPS navigation, in-app technician chat, and instant payouts. Download the .APK or scan with your phone.
               </p>
             </div>
             <Link
@@ -1069,21 +1698,36 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   Book verified local technicians, track them in real time on GPS radar, chat in-app, and confirm completions with secure 4-digit OTP.
                 </p>
-                <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span>Live GPS radar tracking of technicians en route</span>
+
+                {/* QR Code and Feature list row */}
+                <div className="mt-5 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                  <div className="sm:col-span-8 space-y-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span>Live GPS radar tracking of technicians</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span>Transparent rate cards & approval</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span>Razorpay UPI & wallet payments</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span>Transparent rate cards & parts billing approval</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span>Razorpay UPI, cards & digital wallet payments</span>
+
+                  {/* QR Code */}
+                  <div className="sm:col-span-4 p-2.5 rounded-xl border border-border bg-background flex flex-col items-center justify-center text-center">
+                    <img
+                      src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https://kaam-do-mauve.vercel.app/downloads/kaamdo-customer.apk"
+                      alt="Scan to download Customer APK"
+                      className="w-20 h-20 rounded"
+                    />
+                    <span className="text-[10px] text-muted-foreground mt-1 font-medium">Scan to Install</span>
                   </div>
                 </div>
               </div>
+
               <div className="mt-6 pt-4 border-t border-border flex items-center gap-3">
                 <a
                   href="/downloads/kaamdo-customer.apk"
@@ -1091,7 +1735,7 @@ export default function Home() {
                   className="flex-1 py-2.5 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download Customer APK</span>
+                  <span>Download Customer APK (86 MB)</span>
                 </a>
                 <Link
                   href="/apps"
@@ -1117,21 +1761,36 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   Claim local job leads within 10km, stream live navigation, submit extra labor & hardware parts, and request instant bank payouts.
                 </p>
-                <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span>Instant proximity broadcast & lead claiming</span>
+
+                {/* QR Code and Feature list row */}
+                <div className="mt-5 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                  <div className="sm:col-span-8 space-y-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Instant proximity broadcast & leads</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Digital KYC & weekly bank payouts</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Onsite extra parts receipt submission</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span>Digital KYC, Aadhaar check & weekly bank payouts</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span>Itemized onsite extra labor & parts addition</span>
+
+                  {/* QR Code */}
+                  <div className="sm:col-span-4 p-2.5 rounded-xl border border-border bg-background flex flex-col items-center justify-center text-center">
+                    <img
+                      src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https://kaam-do-mauve.vercel.app/downloads/kaamdo-partner.apk"
+                      alt="Scan to download Partner APK"
+                      className="w-20 h-20 rounded"
+                    />
+                    <span className="text-[10px] text-muted-foreground mt-1 font-medium">Scan to Install</span>
                   </div>
                 </div>
               </div>
+
               <div className="mt-6 pt-4 border-t border-border flex items-center gap-3">
                 <a
                   href="/downloads/kaamdo-partner.apk"
@@ -1139,7 +1798,7 @@ export default function Home() {
                   className="flex-1 py-2.5 px-4 rounded-lg bg-[#831843] hover:bg-[#701338] text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
                 >
                   <Download className="w-4 h-4 text-amber-400" />
-                  <span>Download Partner APK</span>
+                  <span>Download Partner APK (86 MB)</span>
                 </a>
                 <Link
                   href="/apps"
@@ -1153,7 +1812,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 11. FAQ ACCORDION: Common Queries */}
+      {/* 13. FAQ ACCORDION: Common Queries */}
       <section className="py-16 sm:py-20 max-w-4xl mx-auto px-4 sm:px-6 w-full" id="faq">
         <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
           <span className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -1198,7 +1857,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 12. FINAL HIGH-CONVERTING CTA BANNER */}
+      {/* 14. FINAL HIGH-CONVERTING CTA BANNER */}
       <section className="py-16 bg-gradient-to-b from-primary/10 via-primary/5 to-background border-t border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-6">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-semibold">
@@ -1235,7 +1894,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 13. PRODUCTION MULTI-COLUMN FOOTER */}
+      {/* 15. PRODUCTION MULTI-COLUMN FOOTER */}
       <footer className="bg-card border-t border-border py-14 text-muted-foreground text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
           {/* Top Footer Strip: Brand + Status */}
