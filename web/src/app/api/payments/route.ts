@@ -17,12 +17,17 @@ export async function GET(request: NextRequest) {
 
     const filter: Record<string, unknown> = {};
 
-    if (authUser.role === "customer") {
+    if (query.asCustomer === "true" || authUser.role === "customer") {
       filter.customerId = authUser.userId;
     } else if (authUser.role === "worker") {
-      filter.workerId = authUser.userId;
-    } else if (authUser.role !== "admin") {
-      return errorResponse("Forbidden", 403, "FORBIDDEN");
+      filter.$or = [
+        { workerId: authUser.userId },
+        { customerId: authUser.userId },
+      ];
+    } else if (authUser.role === "admin") {
+      // Admin can see all or filter by customer/worker if passed
+    } else {
+      filter.customerId = authUser.userId;
     }
 
     if (search) {
@@ -50,7 +55,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireRole(request, ["customer", "admin"]);
+    const user = await requireAuth(request);
     if (process.env.PAYMENTS_ENABLED !== "true") {
       return errorResponse(
         "Payments are temporarily unavailable. Please try again later.",
@@ -59,7 +64,13 @@ export async function POST(request: NextRequest) {
       );
     }
     const { z } = await import("zod");
-    const body = z.object({ action: z.enum(["create-order", "verify"]), jobId: z.string().regex(/^[a-f\d]{24}$/i), provider: z.enum(["razorpay", "cashfree"]).default("razorpay"), razorpay_payment_id: z.string().max(100).optional(), razorpay_signature: z.string().regex(/^[a-f0-9]{64}$/i).optional() }).parse(await request.json());
+    const body = z.object({
+      action: z.enum(["create-order", "verify"]),
+      jobId: z.string().regex(/^[a-f\d]{24}$/i),
+      provider: z.enum(["razorpay", "cashfree"]).default("razorpay"),
+      razorpay_payment_id: z.string().max(100).optional(),
+      razorpay_signature: z.string().optional()
+    }).parse(await request.json());
     const { createCheckout, confirmCheckout } = await import("@/lib/services/checkout");
     
     // Verify job ownership before proceeding to checkout
@@ -73,7 +84,10 @@ export async function POST(request: NextRequest) {
       return errorResponse("Payment not required for this job type", 400);
     }
     
-    const result = body.action === "create-order" ? await createCheckout(user.userId, body.jobId, body.provider) : await confirmCheckout(user.userId, body.jobId, body.razorpay_payment_id, body.razorpay_signature);
+    const customerId = user.role === "admin" ? job.customerId.toString() : user.userId;
+    const result = body.action === "create-order"
+      ? await createCheckout(customerId, body.jobId, body.provider)
+      : await confirmCheckout(customerId, body.jobId, body.razorpay_payment_id, body.razorpay_signature);
     return successResponse(result);
   } catch (error) {
     return handleApiError(error);

@@ -81,13 +81,16 @@ export async function POST(request: NextRequest) {
         user = await User.findOneAndUpdate({ phone: validated.phone }, { $setOnInsert: {
           name: `User ${validated.phone.slice(-4)}`,
           phone: validated.phone,
-          role: "customer",
+          role: body.role === "worker" ? "worker" : "customer",
           isActive: true,
           isPhoneVerified: true,
           passwordChangedAt: new Date(),
         } }, { upsert: true, new: true, runValidators: true });
+      } else if (body.role && ["customer", "worker"].includes(body.role) && user.role !== body.role) {
+        user.role = body.role;
       }
-      if (user.isActive && !user.isPhoneVerified) { user.isPhoneVerified = true; await user.save(); }
+      if (user.isActive && !user.isPhoneVerified) { user.isPhoneVerified = true; }
+      await user.save();
 
       if (!user.isActive) return errorResponse("Account unavailable", 403);
       const token = await signJWT({
