@@ -12,6 +12,9 @@ build/
 Thumbs.db
 mobile/.expo/
 web/.next/
+android/
+ios/
+*.apk
 *.pem
 coverage/
 .vscode/

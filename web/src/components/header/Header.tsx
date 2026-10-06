@@ -20,6 +20,7 @@ import {
   Building2,
   CalendarCheck,
   CheckCircle2,
+  Smartphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -164,6 +165,16 @@ export default function Header() {
             className="hover:text-foreground transition-colors"
           >
             How It Works
+          </Link>
+          <Link
+            href="/apps"
+            className={cn(
+              "flex items-center gap-1.5 hover:text-foreground transition-colors",
+              pathname === "/apps" ? "text-primary font-semibold" : ""
+            )}
+          >
+            <Smartphone className="w-4 h-4 text-primary" />
+            <span>Download Apps</span>
           </Link>
         </nav>
 
@@ -324,6 +335,14 @@ export default function Header() {
                   >
                     <CheckCircle2 className="w-4 h-4 text-primary" />
                     <span>How It Works</span>
+                  </Link>
+                  <Link
+                    href="/apps"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted text-foreground transition font-semibold text-primary"
+                  >
+                    <Smartphone className="w-4 h-4 text-primary" />
+                    <span>Download Mobile Apps</span>
                   </Link>
                 </nav>
               </div>
