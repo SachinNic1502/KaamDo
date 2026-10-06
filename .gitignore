@@ -15,6 +15,7 @@ web/.next/
 android/
 ios/
 *.apk
+!web/public/downloads/*.apk
 *.pem
 coverage/
 .vscode/
