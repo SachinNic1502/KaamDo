@@ -11,6 +11,7 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../utils/constants";
 import { AppDispatch, RootState } from "../../../store";
+import { updateNotificationSettings } from "../../../store/authSlice";
 import { AppHeader, Card, useToast, LogoWordmark } from "../../../components/ui";
 
 export default function WorkerSettingsScreen({ navigation }: any) {

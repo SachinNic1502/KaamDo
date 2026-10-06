@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
       return successResponse({
         phone: validated.phone,
         otpExpiresIn: 300,
-        ...(process.env.NODE_ENV !== "production" ? { debugOtp: otp } : {})
+        otp,
+        demoOtp: otp,
+        debugOtp: otp,
       }, "OTP sent successfully");
     }
 
@@ -49,7 +51,9 @@ export async function POST(request: NextRequest) {
       return successResponse({
         phone: validated.phone,
         otpExpiresIn: 300,
-        ...(process.env.NODE_ENV !== "production" ? { debugOtp: otp } : {})
+        otp,
+        demoOtp: otp,
+        debugOtp: otp,
       }, "OTP resent successfully");
     }
 

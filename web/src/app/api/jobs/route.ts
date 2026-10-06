@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { assertJobTransition } from "@/lib/job-lifecycle";
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
@@ -96,14 +97,22 @@ export async function POST(request: NextRequest) {
     const user = await User.findById(targetCustomerId);
     if (!user) return errorResponse("User not found", 404);
 
-    const category = await ServiceCategory.findById(validated.categoryId);
+    let category = null;
+    if (/^[a-f\d]{24}$/i.test(validated.categoryId)) {
+      category = await ServiceCategory.findById(validated.categoryId);
+    }
+    if (!category) {
+      category = await ServiceCategory.findOne({ slug: validated.categoryId });
+    }
     if (!category || !category.isActive) return errorResponse("Category not found", 404);
 
     const subcategory = category.subcategories.find(
-      (item: { _id?: unknown; slug?: string }) =>
-        String(item._id) === validated.subcategoryId || item.slug === validated.subcategoryId
+      (item: { _id?: unknown; slug?: string; name?: string; isActive?: boolean }) =>
+        (item._id && String(item._id) === validated.subcategoryId) ||
+        item.slug === validated.subcategoryId ||
+        item.name?.toLowerCase() === validated.subcategoryId.toLowerCase()
     );
-    if (!subcategory || !subcategory.isActive) return errorResponse("Subcategory not found", 400);
+    if (!subcategory || subcategory.isActive === false) return errorResponse("Subcategory not found", 400);
 
     const scheduledTimestamp = new Date(validated.scheduledDate).getTime();
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
@@ -122,11 +131,12 @@ export async function POST(request: NextRequest) {
       .lean();
 
     const match = suitableWorkers.find((worker) => worker.userId);
+    const jobSubcategoryId = subcategory._id || new mongoose.Types.ObjectId();
     const job = await Job.create({
       jobNumber,
       customerId: user._id,
-      categoryId: validated.categoryId,
-      subcategoryId: validated.subcategoryId,
+      categoryId: category._id,
+      subcategoryId: jobSubcategoryId,
       description: validated.description,
       images: validated.images || [],
       address: validated.address,

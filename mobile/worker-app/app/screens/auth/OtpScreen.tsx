@@ -105,7 +105,7 @@ export const OtpScreen = ({ route, navigation }: any) => {
         })
       );
     } catch (err: any) {
-      Alert.alert("Verification Failed", err.message || "Invalid OTP entered. Please try again or use 1234 in dev mode.");
+      Alert.alert("Verification Failed", err.message || "Invalid OTP entered. Please enter the correct code sent to your mobile.");
     } finally {
       setIsLoading(false);
     }

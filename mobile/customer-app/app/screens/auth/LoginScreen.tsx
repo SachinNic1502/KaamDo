@@ -33,15 +33,19 @@ export default function CustomerLoginScreen({ navigation }: any) {
     }
     setLoading(true);
     try {
-      await dispatch(sendOtp(cleanPhone)).unwrap();
+      const res: any = await dispatch(sendOtp(cleanPhone)).unwrap();
+      const serverOtp =
+        res?.data?.debugOtp ||
+        res?.data?.otp ||
+        res?.debugOtp ||
+        res?.otp;
       toast.success("Code Sent", `Verification OTP sent to +91 ${cleanPhone}`);
-      navigation.navigate("Otp", { phone: cleanPhone });
-    } catch {
-      toast.info(
-        "Development Notice",
-        "Could not dispatch OTP via SMS. You can proceed with demo code 1234."
+      navigation.navigate("Otp", { phone: cleanPhone, serverOtp });
+    } catch (err: any) {
+      toast.error(
+        "Could Not Send OTP",
+        err.message || "Failed to dispatch verification code. Please try again."
       );
-      navigation.navigate("Otp", { phone: cleanPhone });
     } finally {
       setLoading(false);
     }

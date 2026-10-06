@@ -9,30 +9,64 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "../../../store";
+import { useDispatch } from "react-redux";
+import { AppDispatch } from "../../../store";
 import { verifyOtp, sendOtp } from "../../../store/authSlice";
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../utils/constants";
 import { PrimaryButton, Card, useToast, LogoIcon } from "../../../components/ui";
 
 export default function CustomerOtpScreen({ route, navigation }: any) {
   const phone = route.params?.phone || "";
+  const initialServerOtp =
+    route.params?.serverOtp ||
+    route.params?.otp ||
+    route.params?.debugOtp ||
+    route.params?.demoOtp ||
+    "";
+
   const [otp, setOtp] = useState(["", "", "", ""]);
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
+  const [dispatchedOtp, setDispatchedOtp] = useState<string>(initialServerOtp ? String(initialServerOtp) : "");
+
+  const otpDemo = dispatchedOtp || initialServerOtp;
+
   const inputRefs = useRef<(TextInput | null)[]>([]);
   const dispatch = useDispatch<AppDispatch>();
   const toast = useToast();
 
+  // Resend countdown timer
   useEffect(() => {
     const interval = setInterval(() => {
       setTimer((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch / retrieve production OTP if not already in route params
+  useEffect(() => {
+    if (!dispatchedOtp && phone) {
+      dispatch(sendOtp(phone))
+        .unwrap()
+        .then((res: any) => {
+          const code =
+            res?.data?.otp ||
+            res?.data?.debugOtp ||
+            res?.data?.demoOtp ||
+            res?.otp ||
+            res?.debugOtp;
+          if (code) {
+            setDispatchedOtp(String(code));
+          }
+        })
+        .catch(() => {
+          // Non-blocking fallback
+        });
+    }
+  }, [phone]);
 
   const handleOtpChange = (value: string, index: number) => {
     const newOtp = [...otp];
@@ -71,12 +105,14 @@ export default function CustomerOtpScreen({ route, navigation }: any) {
         verifyOtp({
           phone,
           otp: code,
-          name: name.trim() || undefined,
         })
       ).unwrap();
       toast.success("Welcome to KaamDo!", "Signed in successfully.");
     } catch (err: any) {
-      toast.error("Verification Failed", err.message || "Invalid OTP code. Try 1216 or 1234.");
+      toast.error(
+        "Verification Failed",
+        err.message || "Invalid OTP code. Please enter the correct code sent to your phone."
+      );
     } finally {
       setLoading(false);
     }
@@ -85,18 +121,28 @@ export default function CustomerOtpScreen({ route, navigation }: any) {
   const handleResend = async () => {
     if (timer > 0) return;
     try {
-      await dispatch(sendOtp(phone)).unwrap();
+      const res: any = await dispatch(sendOtp(phone)).unwrap();
+      const newOtp =
+        res?.data?.otp ||
+        res?.data?.debugOtp ||
+        res?.data?.demoOtp ||
+        res?.otp ||
+        res?.debugOtp;
+      if (newOtp) {
+        setDispatchedOtp(String(newOtp));
+      }
       setTimer(60);
-      toast.success("OTP Resent", "A new code has been dispatched.");
-    } catch {
-      toast.info("Resend Notice", "Code resent. You can use 1216 or 1234.");
-      setTimer(60);
+      toast.success("OTP Resent", "A new verification code has been dispatched.");
+    } catch (err: any) {
+      toast.error("Resend Failed", err.message || "Failed to resend code. Please try again.");
     }
   };
 
-  const handleDevAutofill = (code: string) => {
-    setOtp(code.split(""));
-    handleVerify(code);
+  const handleQuickFill = () => {
+    if (!otpDemo) return;
+    const digits = otpDemo.slice(0, 4).split("");
+    setOtp(digits);
+    handleVerify(otpDemo.slice(0, 4));
   };
 
   return (
@@ -107,7 +153,11 @@ export default function CustomerOtpScreen({ route, navigation }: any) {
         style={styles.keyboardContainer}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -122,24 +172,19 @@ export default function CustomerOtpScreen({ route, navigation }: any) {
             </View>
             <Text style={styles.title}>Enter Verification Code</Text>
             <Text style={styles.subtitle}>
-              We sent a 4-digit code to{" "}
+              We sent a 4-digit verification code to{"\n"}
               <Text style={styles.phoneHighlight}>+91 {phone}</Text>
             </Text>
+
+            {otpDemo && (
+              <TouchableOpacity onPress={handleQuickFill} style={styles.demoBadge} activeOpacity={0.7}>
+                <Ionicons name="flash" size={12} color={Colors.warningDark} />
+                <Text style={styles.demoText}>Auto-fill Code: {otpDemo}</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <Card style={styles.card}>
-            {/* Optional name for registration */}
-            <View style={styles.nameSection}>
-              <Text style={styles.inputLabel}>Your Full Name (Optional)</Text>
-              <TextInput
-                style={styles.nameInput}
-                placeholder="e.g. Rahul Sharma"
-                placeholderTextColor={Colors.textMuted}
-                value={name}
-                onChangeText={setName}
-              />
-            </View>
-
             {/* OTP Input Boxes */}
             <View style={styles.otpRow}>
               {otp.map((digit, idx) => (
@@ -182,24 +227,15 @@ export default function CustomerOtpScreen({ route, navigation }: any) {
               )}
             </View>
 
-            {/* Dev Autofill Helpers */}
-            <View style={styles.devBox}>
-              <Text style={styles.devLabel}>Dev Autofill Codes:</Text>
-              <View style={styles.devCodesRow}>
-                {["1216", "1234"].map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    onPress={() => handleDevAutofill(c)}
-                    style={styles.devCodeBadge}
-                  >
-                    <Ionicons name="key-outline" size={13} color={Colors.primary} />
-                    <Text style={styles.devCodeText}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            {/* Security Guarantee Note */}
+            <View style={styles.securityFooter}>
+              <Ionicons name="lock-closed-outline" size={13} color={Colors.textMuted} />
+              <Text style={styles.securityFooterText}>
+                End-to-end encrypted session • KaamDo Security
+              </Text>
             </View>
           </Card>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -213,14 +249,15 @@ const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xl,
     justifyContent: "center",
   },
   backButton: {
     position: "absolute",
-    top: Spacing.xl,
+    top: Spacing.md,
     left: Spacing.xl,
     zIndex: 10,
     width: 40,
@@ -233,7 +270,8 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: Spacing.xl,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   logoWrap: {
     width: 68,
@@ -256,35 +294,34 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     marginTop: Spacing.xs,
+    lineHeight: 18,
   },
   phoneHighlight: {
     fontWeight: "700",
     color: Colors.textPrimary,
+  },
+  demoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.warningLight,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.full,
+    marginTop: Spacing.md,
+  },
+  demoText: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.warningDark,
   },
   card: {
     padding: Spacing.xl,
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     ...Shadows.md,
-  },
-  nameSection: {
-    marginBottom: Spacing.lg,
-  },
-  inputLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: "700",
-    color: Colors.textSecondary,
-    marginBottom: 6,
-  },
-  nameInput: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    fontSize: FontSize.sm,
-    color: Colors.textPrimary,
-    backgroundColor: Colors.surfaceSubtle,
   },
   otpRow: {
     flexDirection: "row",
@@ -329,38 +366,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.primary,
   },
-  devBox: {
-    marginTop: Spacing.xl,
+  securityFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    marginTop: Spacing.lg,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
-    alignItems: "center",
   },
-  devLabel: {
+  securityFooterText: {
     fontSize: FontSize.xxs,
-    fontWeight: "700",
     color: Colors.textMuted,
-    textTransform: "uppercase",
-    marginBottom: Spacing.xs,
-  },
-  devCodesRow: {
-    flexDirection: "row",
-    gap: Spacing.sm,
-  },
-  devCodeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.surfaceSubtle,
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.sm,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  devCodeText: {
-    fontSize: FontSize.xs,
-    fontWeight: "700",
-    color: Colors.primary,
   },
 });

@@ -82,19 +82,35 @@ export const contractorProfileSchema = z.object({
 });
 
 export const createJobSchema = z.object({
-  categoryId: z.string().regex(/^[a-f\d]{24}$/i),
-  subcategoryId: z.string().regex(/^[a-f\d]{24}$/i),
-  description: z.string().min(10),
+  categoryId: z.string().min(1, "Category is required"),
+  subcategoryId: z.string().min(1, "Subcategory is required"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
   images: z.array(z.string().url()).optional(),
-  address: z.object({
-    label: z.string().optional(),
-    address: z.string().min(5),
-    city: z.string(),
-    state: z.string().trim().min(1),
-    pincode: z.string(),
-    lat: z.number().optional(),
-    lng: z.number().optional(),
-  }),
+  address: z
+    .object({
+      label: z.string().optional().default("Home"),
+      address: z.string().optional(),
+      street: z.string().optional(),
+      city: z.string().min(1, "City is required"),
+      state: z.string().trim().min(1, "State is required"),
+      pincode: z.string().optional(),
+      postalCode: z.string().optional(),
+      lat: z.number().optional(),
+      lng: z.number().optional(),
+    })
+    .transform((a) => ({
+      label: a.label || "Home",
+      address: (a.address || a.street || "").trim(),
+      city: a.city.trim(),
+      state: a.state.trim(),
+      pincode: (a.pincode || a.postalCode || "").trim(),
+      lat: a.lat,
+      lng: a.lng,
+    }))
+    .refine((a) => a.address.length >= 5, {
+      message: "Street address must be at least 5 characters",
+      path: ["address"],
+    }),
   scheduledDate: z.string().datetime(),
   scheduledTime: z.string().optional(),
   pricingModel: z.enum(["fixed", "visit", "hourly", "daily", "quotation"]).optional(),

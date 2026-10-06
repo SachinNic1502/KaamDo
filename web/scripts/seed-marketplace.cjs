@@ -233,20 +233,34 @@ async function seedMarketplace() {
 
     console.log("Seeding service categories...");
     for (const cat of defaultCategories) {
+      const preparedSubs = cat.subcategories.map((s) => ({
+        ...s,
+        _id: s._id || new mongoose.Types.ObjectId(),
+        slug: s.slug || s.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        isActive: s.isActive !== false,
+      }));
+
       const exists = await categoriesCol.findOne({ slug: cat.slug });
       if (exists) {
         console.log(`Category "${cat.name}" already exists, updating subcategories...`);
+        // Preserve existing subcategory IDs if available
+        const mergedSubs = preparedSubs.map((newSub) => {
+          const match = (exists.subcategories || []).find((oldSub) => oldSub.slug === newSub.slug || oldSub.name === newSub.name);
+          return match && match._id ? { ...newSub, _id: match._id } : newSub;
+        });
+
         await categoriesCol.updateOne(
           { slug: cat.slug },
-          { $set: { description: cat.description, subcategories: cat.subcategories, isActive: true } }
+          { $set: { description: cat.description, subcategories: mergedSubs, isActive: true, updatedAt: new Date() } }
         );
       } else {
         await categoriesCol.insertOne({
           ...cat,
+          subcategories: preparedSubs,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-        console.log(`Created category "${cat.name}" with ${cat.subcategories.length} subcategories.`);
+        console.log(`Created category "${cat.name}" with ${preparedSubs.length} subcategories.`);
       }
     }
 

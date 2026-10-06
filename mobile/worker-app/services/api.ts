@@ -1,7 +1,21 @@
 import { getAuthToken } from "./storage";
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "https://kaam-do-mauve.vercel.app";
+const resolveApiBaseUrl = (): string => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, "");
+  }
+
+  if (typeof window !== "undefined" && window.location) {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return "http://localhost:3000";
+    }
+  }
+
+  return "https://kaam-do-mauve.vercel.app";
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 interface RequestOptions extends RequestInit {
   token?: string;

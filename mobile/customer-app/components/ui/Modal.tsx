@@ -25,12 +25,21 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
 }) => {
+  React.useEffect(() => {
+    if (Platform.OS === "web" && visible && typeof document !== "undefined") {
+      if (document.activeElement && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }
+  }, [visible]);
+
   return (
     <RNModal
       visible={visible}
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      aria-modal={true}
     >
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>

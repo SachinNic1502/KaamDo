@@ -17,6 +17,14 @@ import {
   Sparkles,
   HardHat,
   Layers,
+  ShieldCheck,
+  Clock,
+  Star,
+  Users,
+  X,
+  ChevronRight,
+  Shield,
+  BadgeCheck,
 } from "lucide-react";
 import { Category, Subcategory, WorkerRecord } from "./types";
 import HeroRadarSimulator from "./HeroRadarSimulator";
@@ -33,10 +41,10 @@ const POPULAR_CITIES = [
 ];
 
 const TRUST_METRICS = [
-  { label: "Verified Professionals", value: "24,000+" },
-  { label: "Completed Service Requests", value: "85,000+" },
-  { label: "Average Response Time", value: "< 25 Mins" },
-  { label: "Customer Satisfaction", value: "4.86 / 5.0" },
+  { label: "Verified Professionals", value: "24,000+", icon: Users, highlight: "Govt Aadhaar KYC" },
+  { label: "Completed Service Requests", value: "85,000+", icon: CheckCircle2, highlight: "Escrow Protected" },
+  { label: "Average Response Time", value: "< 25 Mins", icon: Clock, highlight: "Live GPS Tracking" },
+  { label: "Customer Satisfaction", value: "4.86 / 5.0", icon: Star, highlight: "7-Day Free Warranty" },
 ];
 
 const CATEGORY_ICON_MAP: Record<string, any> = {
@@ -137,35 +145,63 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
   const heroWorker = workers[0];
 
   return (
-    <section className="relative border-b border-border bg-gradient-to-b from-muted/30 via-background to-background pt-12 pb-16 sm:pt-16 sm:pb-24 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <section className="relative border-b border-border bg-gradient-to-b from-muted/40 via-background to-background pt-12 pb-16 sm:pt-18 sm:pb-24 overflow-hidden">
+      {/* Decorative Ambient Backdrop Lighting */}
+      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-primary/15 via-blue-500/5 to-transparent blur-3xl pointer-events-none rounded-full" />
+      <div className="absolute top-24 -left-24 w-72 h-72 bg-emerald-500/5 blur-3xl pointer-events-none rounded-full" />
+      <div className="absolute top-36 -right-24 w-72 h-72 bg-primary/10 blur-3xl pointer-events-none rounded-full" />
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           {/* Left Column: Headline, Value Proposition, Unified Search */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="lg:col-span-7 space-y-7">
             {/* Trust Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold">
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-semibold backdrop-blur-xs shadow-2xs">
               <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>Government Aadhaar & Police Verified Network</span>
+              <span className="flex items-center gap-1.5">
+                <BadgeCheck className="w-3.5 h-3.5" />
+                Government Aadhaar & Police Verified Network
+              </span>
               <span className="text-muted-foreground/60">•</span>
               <span className="font-normal text-muted-foreground hidden sm:inline">24,000+ Active Pros</span>
             </div>
 
             {/* Main Headline */}
-            <div className="space-y-3">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-[1.12]">
-                Find verified tradesmen & skilled technicians near you.
+            <div className="space-y-4">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold tracking-tight text-foreground leading-[1.12]">
+                Find verified tradesmen &{" "}
+                <span className="bg-gradient-to-r from-primary via-blue-600 to-primary bg-clip-text text-transparent">
+                  skilled technicians
+                </span>{" "}
+                near you.
               </h1>
               <p className="text-base sm:text-lg text-muted-foreground max-w-xl font-normal leading-relaxed">
                 Book certified electricians, plumbers, carpenters, and appliance experts at fixed, transparent rate cards. Backed by 4-digit OTP security and our 7-day rework warranty.
               </p>
+
+              {/* 3 Quick Pillar Badges */}
+              <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/70 text-foreground border border-border/80 font-medium">
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>&lt; 25 Min Emergency Arrival</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/70 text-foreground border border-border/80 font-medium">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Dual-OTP Escrow Protection</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/70 text-foreground border border-border/80 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                  <span>7-Day Free Warranty</span>
+                </div>
+              </div>
             </div>
 
             {/* Unified Search Engine with Live Autocomplete */}
             <div ref={searchContainerRef} className="relative max-w-2xl">
-              <div className="bg-card border border-border rounded-xl p-2 shadow-sm transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10">
+              <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl p-2 sm:p-2.5 shadow-lg shadow-black/5 transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 hover:border-primary/40">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -176,7 +212,7 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
                 >
                   {/* Service Input */}
                   <div className="flex-1 flex items-center gap-2.5 px-3 py-2 border-b sm:border-b-0 sm:border-r border-border">
-                    <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <Search className="w-4 h-4 text-primary shrink-0" />
                     <input
                       type="text"
                       placeholder="What service do you need? (e.g. Electrician, AC Repair)"
@@ -188,10 +224,20 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
                       }}
                       className="w-full text-xs sm:text-sm bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
+                    {search.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSearch("")}
+                        className="text-muted-foreground hover:text-foreground p-0.5 rounded cursor-pointer"
+                        title="Clear search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   {/* City Selector with Geolocation Auto-Detect */}
-                  <div className="flex items-center gap-1.5 px-3 py-2 border-b sm:border-b-0 border-border min-w-[150px]">
+                  <div className="flex items-center gap-1.5 px-3 py-2 border-b sm:border-b-0 border-border min-w-[155px]">
                     <MapPin className="w-4 h-4 text-primary shrink-0" />
                     <select
                       value={selectedCity}
@@ -207,8 +253,8 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
                     <button
                       type="button"
                       onClick={handleDetectLocation}
-                      title="Detect your current location"
-                      className="p-1 text-muted-foreground hover:text-primary rounded hover:bg-muted transition-colors shrink-0 cursor-pointer"
+                      title="Detect your current location via GPS"
+                      className="p-1 text-muted-foreground hover:text-primary rounded-md hover:bg-muted transition-colors shrink-0 cursor-pointer"
                     >
                       <LocateFixed className={`w-3.5 h-3.5 ${isDetectingLocation ? "animate-spin text-primary" : ""}`} />
                     </button>
@@ -217,7 +263,7 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
                   {/* Primary Submit */}
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+                    className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm cursor-pointer hover:shadow-md"
                   >
                     <span>Find Workers</span>
                     <ArrowRight className="w-4 h-4" />
@@ -227,39 +273,40 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
 
               {/* Geolocation feedback badge */}
               {detectedLocation && (
-                <div className="mt-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 px-1">
-                  <CheckCircle2 className="w-3 h-3" />
+                <div className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 px-2 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>{detectedLocation} in {selectedCity}</span>
                 </div>
               )}
 
               {/* Live Autocomplete Dropdown */}
               {showSearchDropdown && search.trim().length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden divide-y divide-border">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card/98 backdrop-blur-md border border-border rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-border">
                   {/* Matching Categories */}
                   {searchSuggestions.matchingCats.length > 0 && (
                     <div className="p-3">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block mb-1.5 px-1">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block mb-2 px-1">
                         Trade Categories
                       </span>
                       <div className="space-y-1">
-                        {searchSuggestions.matchingCats.map((cat) => {
+                        {searchSuggestions.matchingCats.map((cat, catIdx) => {
                           const Icon = getCategoryIcon(cat.slug, cat.name);
                           return (
                             <Link
-                              key={cat._id || cat.slug}
+                              key={cat._id || cat.slug || `match-cat-${catIdx}`}
                               href={`/workers?skill=${encodeURIComponent(cat.name)}&city=${encodeURIComponent(selectedCity)}`}
                               onClick={() => setShowSearchDropdown(false)}
-                              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted text-xs font-medium text-foreground transition-colors"
+                              className="flex items-center justify-between p-2 rounded-xl hover:bg-muted text-xs font-medium text-foreground transition-colors group"
                             >
                               <div className="flex items-center gap-2.5">
-                                <div className="w-6 h-6 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                  <Icon className="w-3.5 h-3.5" />
+                                <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                                  <Icon className="w-4 h-4" />
                                 </div>
-                                <span>{cat.name}</span>
+                                <span className="font-semibold">{cat.name}</span>
                               </div>
-                              <span className="text-[11px] text-muted-foreground">
-                                {cat.subcategories?.length || 0} services
+                              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <span>{cat.subcategories?.length || 0} services</span>
+                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />
                               </span>
                             </Link>
                           );
@@ -271,22 +318,22 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
                   {/* Matching Subcategories / Specific Fixes */}
                   {searchSuggestions.matchingSubcats.length > 0 && (
                     <div className="p-3">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block mb-1.5 px-1">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block mb-2 px-1">
                         Specific Repair Services
                       </span>
                       <div className="space-y-1">
-                        {searchSuggestions.matchingSubcats.map(({ catName, sub }) => (
+                        {searchSuggestions.matchingSubcats.map(({ catName, sub }, subIdx) => (
                           <Link
-                            key={sub._id}
+                            key={sub._id || `${catName}-${sub.name}-${subIdx}`}
                             href={`/book?service=${encodeURIComponent(sub.name)}&city=${encodeURIComponent(selectedCity)}`}
                             onClick={() => setShowSearchDropdown(false)}
-                            className="flex items-center justify-between p-2 rounded-lg hover:bg-muted text-xs text-foreground transition-colors"
+                            className="flex items-center justify-between p-2 rounded-xl hover:bg-muted text-xs text-foreground transition-colors"
                           >
                             <div>
                               <p className="font-semibold">{sub.name}</p>
                               <p className="text-[10px] text-muted-foreground">{catName}</p>
                             </div>
-                            <span className="text-xs font-bold text-primary">
+                            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                               From ₹{sub.basePrice}
                             </span>
                           </Link>
@@ -296,7 +343,7 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
                   )}
 
                   {searchSuggestions.matchingCats.length === 0 && searchSuggestions.matchingSubcats.length === 0 && (
-                    <div className="p-4 text-center text-xs text-muted-foreground">
+                    <div className="p-5 text-center text-xs text-muted-foreground">
                       No direct service matches for &quot;{search}&quot;. Press &quot;Find Workers&quot; to search all certified pros.
                     </div>
                   )}
@@ -321,41 +368,57 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
               )}
             </div>
 
-            {/* Popular Discovery Chips */}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pt-1">
-              <span className="font-medium text-foreground">Popular:</span>
-              {(categories.length > 0 ? categories.slice(0, 5) : [
-                { name: "Electrician", slug: "electrician" },
-                { name: "Plumbing", slug: "plumbing" },
-                { name: "AC & Appliance Repair", slug: "ac-repair" },
-                { name: "Carpentry", slug: "carpentry" },
-                { name: "Painting & Waterproofing", slug: "painting" },
-              ]).map((cat) => (
-                <Link
-                  key={cat.slug}
-                  href={`/workers?skill=${encodeURIComponent(cat.name)}&city=${encodeURIComponent(selectedCity)}`}
-                  className="px-2.5 py-1 rounded-md bg-muted/60 hover:bg-muted text-foreground border border-border/70 hover:border-primary/40 transition-colors"
-                >
-                  {cat.name}
-                </Link>
-              ))}
+            {/* Popular Discovery Chips with Trade Icons */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground text-xs">Popular Services:</span>
+                <span className="text-[11px] text-muted-foreground">Standard rate cards upfront</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {(categories.length > 0 ? categories.slice(0, 5) : [
+                  { name: "Electrician", slug: "electrician" },
+                  { name: "Plumbing", slug: "plumbing" },
+                  { name: "AC & Appliance Repair", slug: "ac-repair" },
+                  { name: "Carpentry", slug: "carpentry" },
+                  { name: "Painting & Waterproofing", slug: "painting" },
+                ]).map((cat, catIdx) => {
+                  const Icon = getCategoryIcon(cat.slug, cat.name);
+                  return (
+                    <Link
+                      key={cat.slug || cat.name || `pop-cat-${catIdx}`}
+                      href={`/workers?skill=${encodeURIComponent(cat.name)}&city=${encodeURIComponent(selectedCity)}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card hover:bg-primary hover:text-primary-foreground text-foreground border border-border/80 hover:border-primary transition-all text-xs font-medium shadow-2xs group cursor-pointer"
+                    >
+                      <Icon className="w-3.5 h-3.5 text-primary group-hover:text-primary-foreground transition-colors shrink-0" />
+                      <span>{cat.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Dual Action Buttons */}
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               <Link
                 href="/book"
-                className="px-5 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-semibold transition-colors shadow-xs"
+                className="px-6 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-semibold transition-all shadow-sm hover:shadow-md cursor-pointer flex items-center gap-2"
               >
-                Post a Job Request
+                <span>Post a Job Request</span>
+                <ArrowRight className="w-4 h-4" />
               </Link>
               <a
                 href="#cost-estimator"
-                className="px-5 py-2.5 rounded-lg border border-border bg-background hover:bg-muted text-foreground text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5"
+                className="px-5 py-3 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 shadow-2xs"
               >
-                <Calculator className="w-3.5 h-3.5 text-primary" />
-                <span>Cost Calculator</span>
+                <Calculator className="w-4 h-4 text-primary" />
+                <span>Instant Cost Calculator</span>
               </a>
+              <Link
+                href="/workers"
+                className="px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground text-xs sm:text-sm font-medium transition-colors"
+              >
+                Browse Directory &rarr;
+              </Link>
             </div>
           </div>
 
@@ -366,15 +429,30 @@ export default function HeroSection({ categories, workers }: HeroSectionProps) {
         </div>
 
         {/* Metric Stats Strip */}
-        <div className="mt-16 pt-8 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-6">
-          {TRUST_METRICS.map((m) => (
-            <div key={m.label} className="space-y-1">
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{m.value}</p>
-              <p className="text-xs text-muted-foreground">{m.label}</p>
-            </div>
-          ))}
+        <div className="mt-16 pt-8 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          {TRUST_METRICS.map((m) => {
+            const MetricIcon = m.icon;
+            return (
+              <div
+                key={m.label}
+                className="p-4 sm:p-5 rounded-2xl bg-card/60 backdrop-blur-xs border border-border/80 hover:border-primary/40 transition-all space-y-1.5 shadow-2xs group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <MetricIcon className="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    {m.highlight}
+                  </span>
+                </div>
+                <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground pt-1">{m.value}</p>
+                <p className="text-xs text-muted-foreground font-medium">{m.label}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
   );
 }
+

@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 import { getAuthToken } from "./storage";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://kaam-do-mauve.vercel.app";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 let socket: Socket | null = null;
 

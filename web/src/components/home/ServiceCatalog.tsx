@@ -85,7 +85,7 @@ export default function ServiceCatalog({ categories, loading }: ServiceCatalogPr
               </div>
             ))
           ) : (
-            categories.map((cat) => {
+            categories.map((cat, catIdx) => {
               const Icon = getCategoryIcon(cat.slug, cat.name);
               const minPrice = cat.subcategories?.length
                 ? Math.min(...cat.subcategories.map((s) => s.basePrice || 199))
@@ -93,7 +93,7 @@ export default function ServiceCatalog({ categories, loading }: ServiceCatalogPr
 
               return (
                 <div
-                  key={cat._id || cat.slug}
+                  key={cat._id || cat.slug || `cat-${catIdx}`}
                   className="p-5 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all flex flex-col justify-between"
                 >
                   <div>
@@ -120,9 +120,9 @@ export default function ServiceCatalog({ categories, loading }: ServiceCatalogPr
                           Popular Quick Fixes:
                         </span>
                         <div className="flex flex-wrap gap-1.5">
-                          {cat.subcategories.slice(0, 3).map((sub) => (
+                          {cat.subcategories.slice(0, 3).map((sub, subIdx) => (
                             <Link
-                              key={sub._id}
+                              key={sub._id || `${cat.slug || catIdx}-${sub.name || subIdx}`}
                               href={`/book?category=${cat.slug}&service=${encodeURIComponent(sub.name)}`}
                               className="px-2 py-1 rounded-md bg-muted/60 hover:bg-primary hover:text-primary-foreground text-[11px] font-medium text-foreground transition-colors border border-border/70"
                             >

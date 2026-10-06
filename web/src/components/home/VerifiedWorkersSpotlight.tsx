@@ -50,7 +50,7 @@ export default function VerifiedWorkersSpotlight({ workers, loading }: VerifiedW
               </div>
             ))
           ) : (
-            workers.map((w) => {
+            workers.map((w, idx) => {
               const workerName = w.userId?.name || "Verified Professional";
               const workerAvatar =
                 w.userId?.avatar ||
@@ -65,7 +65,7 @@ export default function VerifiedWorkersSpotlight({ workers, loading }: VerifiedW
 
               return (
                 <div
-                  key={w._id}
+                  key={w._id || `worker-${idx}`}
                   className="rounded-2xl bg-card border border-border p-6 flex flex-col justify-between hover:border-primary/40 transition-colors"
                 >
                   <div>

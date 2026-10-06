@@ -181,6 +181,7 @@ interface SidebarProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onNavigate?: () => void;
+  adminUser?: { name?: string; email?: string; phone?: string } | null;
 }
 
 export function Sidebar({
@@ -188,11 +189,21 @@ export function Sidebar({
   isCollapsed = false,
   onToggleCollapse,
   onNavigate,
+  adminUser,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const cache = useQueryClient();
   const [searchQuery, setSearchQuery] = React.useState("");
+
+  const initials = React.useMemo(() => {
+    if (!adminUser?.name) return "AD";
+    const parts = adminUser.name.trim().split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return adminUser.name.slice(0, 2).toUpperCase();
+  }, [adminUser?.name]);
 
   // Submenu open states
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>(() => {
@@ -599,16 +610,16 @@ export function Sidebar({
                 >
                   <Avatar size="default" className="border border-border">
                     <AvatarFallback className="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs">
-                      SA
+                      {initials}
                     </AvatarFallback>
                     <AvatarBadge className="bg-emerald-500" />
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">
-                      Super Admin
+                      {adminUser?.name || "Super Admin"}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
-                      admin@kaamdo.com
+                      {adminUser?.email || adminUser?.phone || "admin@kaamdo.com"}
                     </p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
@@ -616,7 +627,7 @@ export function Sidebar({
 
                 <DropdownMenuContent align="end" side="top" className="w-56 mb-2">
                   <DropdownMenuLabel className="font-semibold text-xs">
-                    Admin Session Active
+                    {adminUser?.name || "Admin Session Active"}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -648,10 +659,10 @@ export function Sidebar({
             <div className="flex flex-col items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger render={
-                  <button className="outline-none" title="Super Admin">
+                  <button className="outline-none cursor-pointer" title={adminUser?.name || "Super Admin"}>
                     <Avatar size="sm" className="border border-border">
                       <AvatarFallback className="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[10px]">
-                        SA
+                        {initials}
                       </AvatarFallback>
                       <AvatarBadge className="bg-emerald-500" />
                     </Avatar>
@@ -659,8 +670,8 @@ export function Sidebar({
                 } />
                 <DropdownMenuContent align="end" side="right" className="w-52">
                   <DropdownMenuLabel>
-                    <p className="text-xs font-semibold text-foreground">Super Admin</p>
-                    <p className="text-[11px] text-muted-foreground truncate">admin@kaamdo.com</p>
+                    <p className="text-xs font-semibold text-foreground">{adminUser?.name || "Super Admin"}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{adminUser?.email || adminUser?.phone || "admin@kaamdo.com"}</p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
