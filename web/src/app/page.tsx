@@ -819,8 +819,6 @@ export default function Home() {
           )}
         </div>
       </section>
-        </div>
-      </section>
 
       {/* 6. HOW KAAMDO WORKS: 3-Step Clear Flow */}
       <section className="py-16 sm:py-20 bg-muted/20 border-y border-border" id="how-it-works">

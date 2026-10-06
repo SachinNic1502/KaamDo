@@ -158,7 +158,7 @@ async function finalizeCheckout(
           transactionId: order.gateway + ":" + confirmedId,
         },
       },
-      { upsert: true, new: true, ...opts }
+      { upsert: true, ...opts }
     );
 
     await PayoutObligation.findOneAndUpdate(
@@ -181,7 +181,7 @@ async function finalizeCheckout(
   } catch (err: any) {
     if (
       err?.message?.includes("Transaction numbers are only allowed on a replica set") ||
-      !mongoose.connection.client?.options?.replicaSet
+      !(mongoose.connection as any).client?.options?.replicaSet
     ) {
       await executeSettlement();
     } else {
@@ -194,6 +194,7 @@ async function finalizeCheckout(
     const earning = ((order.amountMinor - order.feeMinor) / 100).toFixed(2);
     await RealtimeService.sendRoleNotification({
       role: "worker",
+      type: "payment_credited",
       title: "Payment Credited! 💰",
       message: `₹${earning} has been credited to your settlement account for job #${jobId.slice(-6)}.`,
       data: { jobId, paymentId: confirmedId },

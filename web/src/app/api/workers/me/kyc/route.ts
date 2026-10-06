@@ -83,6 +83,7 @@ export async function PATCH(request: NextRequest) {
     try {
       await RealtimeService.sendRoleNotification({
         role: "admin",
+        type: "kyc_submission",
         title: "New KYC Verification Request",
         message: `Worker has submitted identity & bank verification documents.`,
         data: { workerId: authUser.userId, status: "pending" },

@@ -164,13 +164,15 @@ export async function PATCH(request: NextRequest) {
     // Notify worker if admin updated their status
     if (authUser.role === "admin" && profile.userId?._id) {
       try {
+        const rejectionReason = (updates as { rejectionReason?: string }).rejectionReason;
         const title = updates.status === "verified" ? "KYC Approved! 🎉" : "KYC Update Required";
         const message = updates.status === "verified"
           ? "Your identity verification is complete. You can now accept leads and earn!"
-          : `KYC was rejected: ${updates.rejectionReason || "Please re-upload clearer documents."}`;
+          : `KYC was rejected: ${rejectionReason || "Please re-upload clearer documents."}`;
 
         await RealtimeService.sendRoleNotification({
           role: "worker",
+          type: "worker_status_updated",
           title,
           message,
           data: { status: updates.status, workerId: profile.userId._id.toString() },
