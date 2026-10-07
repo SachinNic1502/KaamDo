@@ -11,6 +11,7 @@ import { handleApiError } from "@/lib/api-error";
 import { resourceScope } from "@/lib/resource-policy";
 import { objectIdSchema, jobUpdateSchema } from "@/lib/security-schemas";
 import { RealtimeService } from "@/lib/services/realtime";
+import { WorkerMatchingService, MAX_CONCURRENT_ACTIVE_JOBS } from "@/lib/services/worker-matching";
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +53,52 @@ export async function GET(request: NextRequest) {
       filter = { customerId: authUser.userId };
     } else if (authUser.role === "worker") {
       if (status === "searching" || query.available === "true") {
-        filter = { status: "searching" };
+        // Secure verification & status check: Offline, unverified, or suspended workers see 0 available leads
+        const workerProfile = await WorkerProfile.findOne({ userId: authUser.userId }).lean();
+        if (!workerProfile || workerProfile.status !== "verified" || !workerProfile.isOnline) {
+          return paginatedResponse([], 0, page, limit);
+        }
+
+        // Check active job capacity limit: Busy workers at capacity cannot receive new leads
+        const activeCount = await Job.countDocuments({
+          workerId: authUser.userId,
+          status: { $in: ["worker_accepted", "on_the_way", "arrived", "work_started", "in_progress"] },
+        });
+        if (activeCount >= MAX_CONCURRENT_ACTIVE_JOBS) {
+          return paginatedResponse([], 0, page, limit);
+        }
+
+        // Find service categories matching worker's skills
+        const workerSkills: string[] = workerProfile.skills || [];
+        const skillRegexes = workerSkills.map((s) => new RegExp(`^${s.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}`, "i"));
+        const matchingCategories = await ServiceCategory.find({
+          $or: [
+            { name: { $in: skillRegexes } },
+            { slug: { $in: workerSkills.map((s) => s.toLowerCase()) } },
+            { "subcategories.name": { $in: skillRegexes } },
+            { "subcategories.slug": { $in: workerSkills.map((s) => s.toLowerCase()) } },
+          ],
+        }).select("_id");
+
+        const categoryIds = matchingCategories.map((c) => c._id);
+        const workerCity = workerProfile.location?.city || "Bengaluru";
+        const serviceAreaRegexes = [
+          new RegExp(`^${workerCity}`, "i"),
+          ...(workerProfile.serviceAreas || []).map((a: string) => new RegExp(`^${a.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}`, "i")),
+        ];
+
+        // Only show jobs targeted to this worker or matching their category & service area, and not declined
+        filter = {
+          status: "searching",
+          declinedWorkerIds: { $ne: new mongoose.Types.ObjectId(authUser.userId) },
+          $or: [
+            { targetWorkerIds: new mongoose.Types.ObjectId(authUser.userId) },
+            {
+              categoryId: { $in: categoryIds },
+              "address.city": { $in: serviceAreaRegexes },
+            },
+          ],
+        };
       } else {
         filter = { workerId: authUser.userId };
       }
@@ -120,17 +166,26 @@ export async function POST(request: NextRequest) {
     const jobNumber = generateJobNumber();
     const startOtp = generateOTP();
 
-    const suitableWorkers = await WorkerProfile.find({
-      status: "verified",
-      isOnline: true,
-      serviceAreas: validated.address.city,
-      skills: { $in: [category.name] },
-    })
-      .populate({ path: "userId", select: "_id", match: { isActive: true, role: "worker" } })
-      .limit(10)
-      .lean();
+    // Secure Multi-Tier Worker Priority Matching
+    // Check Category & Skill -> Check Service Area -> Check Distance -> Check Availability -> Check Active/Verified -> Check Capacity
+    const matchResult = await WorkerMatchingService.findEligibleWorkers({
+      categoryId: category._id,
+      subcategoryId: subcategory._id,
+      categoryName: category.name,
+      categorySlug: category.slug,
+      subcategoryName: subcategory.name,
+      subcategorySlug: subcategory.slug,
+      address: validated.address,
+      scheduledDate: new Date(validated.scheduledDate),
+      scheduledTime: validated.scheduledTime,
+    });
 
-    const match = suitableWorkers.find((worker) => worker.userId);
+    const matchedWorkers = matchResult.matchedWorkers;
+    const targetWorkerUserIds = matchedWorkers.map((w) => new mongoose.Types.ObjectId(w.userId));
+
+    // Priority matching: Top-matched worker is pre-assigned OR broadcast strictly to matched pool
+    const topMatch = matchedWorkers.length > 0 ? matchedWorkers[0] : null;
+
     const jobSubcategoryId = subcategory._id || new mongoose.Types.ObjectId();
     const job = await Job.create({
       jobNumber,
@@ -142,18 +197,21 @@ export async function POST(request: NextRequest) {
       address: validated.address,
       scheduledDate: new Date(validated.scheduledDate),
       scheduledTime: validated.scheduledTime,
-      status: match ? "worker_assigned" : "searching",
-      workerId: match?.userId._id,
+      status: topMatch ? "worker_assigned" : "searching",
+      workerId: topMatch ? new mongoose.Types.ObjectId(topMatch.userId) : undefined,
+      targetWorkerIds: targetWorkerUserIds,
+      broadcastRadiusKm: matchResult.radiusKmUsed,
+      matchingTier: matchResult.tierUsed,
       pricingModel: subcategory.pricingModel,
       estimatedPrice: subcategory.basePrice,
       startOtp,
       startOtpExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    if (match) {
+    if (topMatch) {
       await RealtimeService.notifyWorkerAssigned({
         jobId: job._id.toString(),
-        workerId: match.userId._id.toString(),
+        workerId: topMatch.userId,
         customerId: user._id.toString(),
         jobDetails: {
           jobNumber: job.jobNumber,
@@ -162,25 +220,19 @@ export async function POST(request: NextRequest) {
           address: validated.address,
         },
       });
-    } else {
-      await RealtimeService.sendRoleNotification({
-        role: "worker",
-        type: "new_lead_available",
-        title: "New Job Lead Available",
-        message: `New ${category.name} request in ${validated.address.city}`,
-        data: {
-          jobId: job._id.toString(),
-          jobNumber: job.jobNumber,
-          category: category.name,
-          city: validated.address.city,
-        },
-      });
+    }
+
+    // Notify ONLY the matched, eligible workers (strictly targeted, no indiscriminate broadcasts)
+    if (matchedWorkers.length > 0) {
+      await WorkerMatchingService.notifyMatchedWorkers(job, matchedWorkers, category.name);
     }
 
     return successResponse(
       {
         job,
-        matchedWorkers: suitableWorkers.length,
+        matchedWorkers: matchedWorkers.length,
+        matchingTier: matchResult.tierUsed,
+        searchRadiusKm: matchResult.radiusKmUsed,
       },
       "Job created successfully",
       201

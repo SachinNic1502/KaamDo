@@ -51,6 +51,10 @@ export interface IJobDocument extends Document {
   review?: string;
   cancellationReason?: string;
   cancelledBy?: mongoose.Types.ObjectId;
+  targetWorkerIds?: mongoose.Types.ObjectId[];
+  declinedWorkerIds?: mongoose.Types.ObjectId[];
+  broadcastRadiusKm?: number;
+  matchingTier?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -136,6 +140,10 @@ const JobSchema = new Schema<IJobDocument>(
     review: String,
     cancellationReason: String,
     cancelledBy: { type: Schema.Types.ObjectId, ref: "User" },
+    targetWorkerIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    declinedWorkerIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    broadcastRadiusKm: { type: Number, default: 5 },
+    matchingTier: { type: Number, default: 1 },
   },
   { timestamps: true, optimisticConcurrency: true }
 );
@@ -150,5 +158,7 @@ JobSchema.index({ scheduledDate: 1 });
 JobSchema.index({ status: 1, createdAt: -1 }); // Compound index for status filtering
 JobSchema.index({ customerId: 1, status: 1 }); // Compound index for customer jobs
 JobSchema.index({ workerId: 1, status: 1 }); // Compound index for worker jobs
+JobSchema.index({ targetWorkerIds: 1 });
+JobSchema.index({ status: 1, targetWorkerIds: 1 });
 
 export default mongoose.models.Job || mongoose.model<IJobDocument>("Job", JobSchema);

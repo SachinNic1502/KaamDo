@@ -6,6 +6,8 @@ import { requireAuth } from "@/lib/auth-middleware";
 import { handleApiError } from "@/lib/api-error";
 import { RealtimeService } from "@/lib/services/realtime";
 
+import { WorkerMatchingService } from "@/lib/services/worker-matching";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -27,12 +29,17 @@ export async function GET(
 
     // Role-based authorization check
     const isCustomer = authUser.role === "customer" && String(job.customerId?._id || job.customerId) === authUser.userId;
-    const isWorker = authUser.role === "worker" && String(job.workerId?._id || job.workerId) === authUser.userId;
-    const isBroadcastLead = authUser.role === "worker" && (job.status === "searching" || job.status === "worker_assigned");
+    const isAssignedWorker = authUser.role === "worker" && String(job.workerId?._id || job.workerId) === authUser.userId;
     const isAdmin = authUser.role === "admin";
 
-    if (!isCustomer && !isWorker && !isBroadcastLead && !isAdmin) {
-      return errorResponse("Forbidden", 403, "FORBIDDEN");
+    let isEligibleWorkerLead = false;
+    if (authUser.role === "worker" && !isAssignedWorker && (job.status === "searching" || job.status === "worker_assigned")) {
+      const eligibility = await WorkerMatchingService.isWorkerEligibleForJob(authUser.userId, job);
+      isEligibleWorkerLead = eligibility.eligible;
+    }
+
+    if (!isCustomer && !isAssignedWorker && !isEligibleWorkerLead && !isAdmin) {
+      return errorResponse("Forbidden: You are not authorized or eligible for this job", 403, "FORBIDDEN");
     }
 
     // Only customer and admin can view verification OTPs in plain text

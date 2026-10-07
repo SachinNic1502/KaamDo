@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Job } from "@/lib/models";
@@ -5,6 +6,7 @@ import { successResponse, errorResponse } from "@/lib/api-response";
 import { requireAuth } from "@/lib/auth-middleware";
 import { handleApiError } from "@/lib/api-error";
 import { RealtimeService } from "@/lib/services/realtime";
+import { WorkerMatchingService } from "@/lib/services/worker-matching";
 
 export async function POST(
   request: NextRequest,
@@ -32,25 +34,22 @@ export async function POST(
       return errorResponse("You are not assigned to this job", 403, "FORBIDDEN");
     }
 
-    // Unassign worker and put job back into searching pool
+    // Unassign worker, record decline, and return to priority dispatch pool
     job.workerId = undefined;
     job.status = "searching";
+    if (!job.declinedWorkerIds) {
+      job.declinedWorkerIds = [];
+    }
+    if (!job.declinedWorkerIds.some((id: any) => id.toString() === authUser.userId)) {
+      job.declinedWorkerIds.push(new mongoose.Types.ObjectId(authUser.userId));
+    }
     await job.save();
 
+    // Trigger priority radius expansion to notify the next nearest eligible tier
     try {
-      await RealtimeService.sendRoleNotification({
-        role: "worker",
-        type: "lead_reopened",
-        title: "Service Lead Available",
-        message: `Job #${job.jobNumber} has been reopened to the provider pool.`,
-        data: {
-          jobId: job._id.toString(),
-          jobNumber: job.jobNumber,
-          reason,
-        },
-      });
-    } catch {
-      // Non-blocking notification
+      await WorkerMatchingService.expandJobSearchRadius(jobId);
+    } catch (e) {
+      console.warn("Could not expand job search radius:", e);
     }
 
     return successResponse(job, "Job declined and returned to dispatch pool");

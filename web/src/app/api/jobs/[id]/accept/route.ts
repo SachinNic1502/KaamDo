@@ -7,6 +7,8 @@ import { handleApiError } from "@/lib/api-error";
 import { RealtimeService } from "@/lib/services/realtime";
 import { generateOTP } from "@/lib/auth";
 
+import { WorkerMatchingService } from "@/lib/services/worker-matching";
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,13 +22,7 @@ export async function POST(
       return errorResponse("Only verified service partners can accept job requests", 403, "FORBIDDEN");
     }
 
-    // Verify worker profile status
-    const workerProfile = await WorkerProfile.findOne({ userId: authUser.userId });
-    if (!workerProfile) {
-      return errorResponse("Worker profile not found. Please complete profile setup.", 404);
-    }
-
-    const job = await Job.findById(jobId);
+    const job = await Job.findById(jobId).populate("categoryId", "name slug subcategories");
     if (!job) {
       return errorResponse("Job not found", 404);
     }
@@ -43,6 +39,13 @@ export async function POST(
     // If job was pre-assigned to another worker
     if (job.status === "worker_assigned" && job.workerId && job.workerId.toString() !== authUser.userId) {
       return errorResponse("This job was assigned to another trade professional", 403, "FORBIDDEN");
+    }
+
+    // Rigorous Backend Worker Matching & Eligibility Check
+    // Verifies: Skills, category match, location radius, verification, online status, and active job capacity limit
+    const eligibility = await WorkerMatchingService.isWorkerEligibleForJob(authUser.userId, job);
+    if (!eligibility.eligible) {
+      return errorResponse(`Ineligible to accept job: ${eligibility.reason}`, 403, "NOT_ELIGIBLE");
     }
 
     // Assign worker and transition status
