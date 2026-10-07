@@ -19,6 +19,8 @@ import { useSelector } from "react-redux";
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../utils/constants";
 import { useCategories, useCreateJob } from "../../../hooks/use-api";
 import { uploadMultipleImages } from "../../../services/upload";
+import { validatePromo } from "../../../services/promo";
+import { userService } from "../../../services/users";
 import * as SecureStore from "../../../services/storage";
 import {
   AppHeader,
@@ -162,6 +164,13 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
   const [selectedSavedAddrId, setSelectedSavedAddrId] = useState<string | null>("addr_home");
   const [saveAddressForFuture, setSaveAddressForFuture] = useState(true);
   const [draftBanner, setDraftBanner] = useState<{ step: number; category: string } | null>(null);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    discount: number;
+    message: string;
+  } | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
   const [form, setForm] = useState({
     category: "",
@@ -327,6 +336,39 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
     });
   };
 
+  const handleApplyPromo = async () => {
+    const code = promoCodeInput.trim().toUpperCase();
+    if (!code) {
+      toast.warning("Enter Code", "Please enter a coupon code.");
+      return;
+    }
+    const orderAmt = selectedSubcategoryObj?.basePrice || 299;
+    setIsValidatingPromo(true);
+    try {
+      const res = await validatePromo(code, orderAmt);
+      if (res.data?.valid) {
+        setAppliedPromo({
+          code: res.data.code || code,
+          discount: Number(res.data.discount) || 0,
+          message: res.data.message || `Code ${code} applied successfully!`,
+        });
+        toast.success("Coupon Applied! 🎉", `Saved ₹${res.data.discount} on your booking estimate.`);
+      } else {
+        toast.error("Invalid Code", res.message || "Coupon code could not be applied.");
+      }
+    } catch (err: any) {
+      toast.error("Coupon Error", err.message || "Failed to validate coupon code.");
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCodeInput("");
+    toast.info("Coupon Removed", "Discount has been removed from estimate.");
+  };
+
   const selectedCategoryObj = categories.find((c) => c.name === form.category);
   const selectedSubcategoryObj = selectedCategoryObj?.subcategories?.find(
     (s) => s.name === form.subcategory
@@ -442,19 +484,13 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
 
           if (saveAddressForFuture) {
             try {
-              const newAddr: SavedAddress = {
-                id: `addr_${Date.now()}`,
+              await userService.saveAddress({
                 label: form.addressLabel || "Home",
                 address: form.address.trim(),
                 city: form.city.trim(),
                 state: form.state.trim(),
                 pincode: form.pincode.trim(),
-              };
-              const existingFiltered = savedAddresses.filter(
-                (a) => a.address.toLowerCase() !== newAddr.address.toLowerCase()
-              );
-              const updatedList = [newAddr, ...existingFiltered].slice(0, 5);
-              await SecureStore.setItemAsync(SAVED_ADDRESSES_KEY, JSON.stringify(updatedList));
+              });
             } catch {}
           }
 
@@ -1230,6 +1266,100 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                     {form.date} at {form.time} ({form.urgency === "urgent" ? "Express" : "Standard"})
                   </Text>
                 </View>
+              </Card>
+
+              {/* Promo Code Coupon Card */}
+              <Card style={{ marginBottom: Spacing.md, padding: Spacing.md }}>
+                <View style={styles.promoHeaderRow}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="pricetag-outline" size={17} color={Colors.primary} />
+                    <Text style={styles.promoCardTitle}>Offers & Coupons</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => navigation.navigate("Promo")} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                    <Text style={styles.viewCouponsLink}>View All Offers</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {appliedPromo ? (
+                  <View style={styles.appliedPromoWrap}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                        <Text style={styles.appliedPromoCodeText}>{appliedPromo.code}</Text>
+                        <Text style={styles.appliedPromoDiscountText}>-₹{appliedPromo.discount} OFF</Text>
+                      </View>
+                      <Text style={styles.appliedPromoSub}>{appliedPromo.message}</Text>
+                    </View>
+                    <TouchableOpacity onPress={handleRemovePromo} style={styles.removePromoBtn}>
+                      <Text style={styles.removePromoText}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.promoInputRow}>
+                    <View style={styles.promoTextInputWrap}>
+                      <TextInput
+                        placeholder="Coupon Code (e.g. WELCOME50)"
+                        placeholderTextColor={Colors.textMuted}
+                        value={promoCodeInput}
+                        onChangeText={(t) => setPromoCodeInput(t.toUpperCase())}
+                        autoCapitalize="characters"
+                        style={styles.promoTextInput}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.applyPromoBtn, isValidatingPromo && { opacity: 0.7 }]}
+                      onPress={handleApplyPromo}
+                      disabled={isValidatingPromo}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.applyPromoText}>
+                        {isValidatingPromo ? "..." : "Apply"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </Card>
+
+              {/* Estimated Pricing Card */}
+              <Card style={{ marginBottom: Spacing.md, padding: Spacing.md }}>
+                <Text style={styles.estimateTitle}>Estimated Price Breakdown</Text>
+                <View style={styles.estimateRow}>
+                  <Text style={styles.estimateLabel}>Base Inspection / Labor</Text>
+                  <Text style={styles.estimateVal}>
+                    ₹{selectedSubcategoryObj?.basePrice || 299}
+                  </Text>
+                </View>
+                {form.urgency === "urgent" && (
+                  <View style={styles.estimateRow}>
+                    <Text style={styles.estimateLabel}>Express Dispatch Fee</Text>
+                    <Text style={styles.estimateVal}>₹99</Text>
+                  </View>
+                )}
+                {appliedPromo && (
+                  <View style={styles.estimateRow}>
+                    <Text style={[styles.estimateLabel, { color: Colors.success }]}>
+                      Coupon Discount ({appliedPromo.code})
+                    </Text>
+                    <Text style={[styles.estimateVal, { color: Colors.success }]}>
+                      -₹{appliedPromo.discount}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.estimateDivider} />
+                <View style={styles.estimateTotalRow}>
+                  <Text style={styles.estimateTotalLabel}>Estimated Total</Text>
+                  <Text style={styles.estimateTotalVal}>
+                    ₹{Math.max(
+                      0,
+                      (selectedSubcategoryObj?.basePrice || 299) +
+                        (form.urgency === "urgent" ? 99 : 0) -
+                        (appliedPromo?.discount || 0)
+                    )}
+                  </Text>
+                </View>
+                <Text style={styles.estimateFooterNote}>
+                  * Exact total confirmed after job inspection via Completion OTP.
+                </Text>
               </Card>
 
               <Card variant="flat" style={styles.guaranteeCard}>
@@ -2096,6 +2226,139 @@ const styles = StyleSheet.create({
     color: "#15803D",
     marginTop: 2,
     lineHeight: 18,
+  },
+
+  /* --- Promo & Estimate Styles --- */
+  promoHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
+  promoCardTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  viewCouponsLink: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.primary,
+  },
+  promoInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  promoTextInputWrap: {
+    flex: 1,
+    height: 48,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    justifyContent: "center",
+    paddingHorizontal: Spacing.sm + 4,
+  },
+  promoTextInput: {
+    fontSize: FontSize.sm,
+    color: Colors.textPrimary,
+    fontWeight: "700",
+  },
+  applyPromoBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+    height: 48,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  applyPromoText: {
+    color: Colors.white,
+    fontSize: FontSize.xs + 1,
+    fontWeight: "700",
+  },
+  appliedPromoWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.primaryLight,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.primaryMuted,
+  },
+  appliedPromoCodeText: {
+    fontSize: FontSize.sm,
+    fontWeight: "800",
+    color: Colors.primary,
+  },
+  appliedPromoDiscountText: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.success,
+  },
+  appliedPromoSub: {
+    fontSize: FontSize.xxs,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  removePromoBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  removePromoText: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.error,
+  },
+  estimateTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
+  },
+  estimateRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 3,
+  },
+  estimateLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+  },
+  estimateVal: {
+    fontSize: FontSize.xs,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+  },
+  estimateDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: Spacing.xs + 2,
+  },
+  estimateTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 2,
+  },
+  estimateTotalLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+  },
+  estimateTotalVal: {
+    fontSize: FontSize.base,
+    fontWeight: "800",
+    color: Colors.primary,
+  },
+  estimateFooterNote: {
+    fontSize: FontSize.xxs,
+    color: Colors.textMuted,
+    fontStyle: "italic",
+    marginTop: 4,
   },
 
   /* --- Bottom Bar --- */

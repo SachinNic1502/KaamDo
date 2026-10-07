@@ -12,4 +12,6 @@ export { default as Commission } from "./commission.model";
 export { default as Attendance } from "./attendance.model";
 export { default as PromoCode } from "./promo-code.model";
 export { default as PlatformSetting } from "./platform-setting.model";
+export { default as PayoutObligation } from "./payout-obligation.model";
+export { default as PaymentOrder } from "./payment-order.model";
 export { Message, Chat } from "./chat.model";

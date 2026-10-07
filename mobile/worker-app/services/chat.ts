@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { getAuthToken } from "./storage";
+import { api } from "./api";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.trim() || "https://kaam-do-mauve.vercel.app";
 
@@ -56,12 +57,37 @@ export function leaveJobRoom(jobId: string) {
   socket?.emit("leave-job", { jobId });
 }
 
-export function sendMessage(data: {
+export async function sendMessage(data: {
   jobId: string;
   receiverId: string;
   text: string;
-}) {
+  chatId?: string;
+}): Promise<void> {
+  // Real-time socket broadcast
   socket?.emit("send-message", data);
+
+  // REST API persistence in case socket is disconnected or on serverless
+  try {
+    const token = await getAuthToken();
+    if (token) {
+      let targetChatId = data.chatId;
+      if (!targetChatId && data.receiverId) {
+        const chatRes = await api.post<any>("/api/chat", {
+          participantId: data.receiverId,
+          jobId: data.jobId,
+        }, token);
+        targetChatId = chatRes?.data?._id;
+      }
+      if (targetChatId) {
+        await api.post("/api/messages", {
+          chatId: targetChatId,
+          message: data.text,
+        }, token);
+      }
+    }
+  } catch (err) {
+    console.warn("Worker message REST sync:", err);
+  }
 }
 
 export function onNewMessage(callback: (message: ChatMessage) => void) {

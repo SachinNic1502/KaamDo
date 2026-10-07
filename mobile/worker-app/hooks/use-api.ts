@@ -6,6 +6,7 @@ import {
   WorkerProfile,
   EarningsSummary,
   PayoutTransaction,
+  AttendanceRecord,
   ApiResponse,
 } from "../types";
 
@@ -207,15 +208,28 @@ export function usePayoutHistory() {
 export function useRequestPayout() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { amount: number; paymentMethod: string; upiId?: string }) => {
+    mutationFn: async (data: {
+      amount: number;
+      paymentMethod: string;
+      upiId?: string;
+      accountNumber?: string;
+      ifsc?: string;
+      accountHolderName?: string;
+    }) => {
       return api.post<ApiResponse<PayoutTransaction>>("/api/payouts", {
         amount: data.amount,
-        beneficiaryName: data.upiId,
+        paymentMethod: data.paymentMethod,
+        beneficiaryName: data.upiId || data.accountHolderName,
+        upiId: data.upiId,
+        accountNumber: data.accountNumber,
+        ifsc: data.ifsc,
+        accountHolderName: data.accountHolderName,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["worker", "earnings"] });
       queryClient.invalidateQueries({ queryKey: ["worker", "payouts"] });
+      queryClient.invalidateQueries({ queryKey: ["worker", "profile"] });
     },
   });
 }
@@ -249,5 +263,78 @@ export function useCategories() {
       const res = await api.get<ApiResponse<ServiceCategory[]>>("/api/categories");
       return res.data || [];
     },
+  });
+}
+
+export function useAttendanceList(params?: { date?: string; status?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ["worker", "attendance", params],
+    queryFn: async () => {
+      let url = "/api/attendance?limit=" + (params?.limit || 20);
+      if (params?.date) url += `&date=${params.date}`;
+      if (params?.status) url += `&status=${params.status}`;
+      const res = await api.get<ApiResponse<AttendanceRecord[]>>(url);
+      return res.data || [];
+    },
+  });
+}
+
+export function useCheckIn() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { jobId: string; notes?: string; checkIn?: string; action?: string }) => {
+      return api.post<ApiResponse<AttendanceRecord>>("/api/attendance", {
+        ...payload,
+        action: payload.action || "check-in",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["worker", "attendance"] });
+    },
+  });
+}
+
+export function useCheckOut() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { attendanceId: string; checkOut?: string; action?: string }) => {
+      return api.patch<ApiResponse<AttendanceRecord>>("/api/attendance", {
+        ...payload,
+        action: payload.action || "check-out",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["worker", "attendance"] });
+    },
+  });
+}
+
+export interface WorkerReviewsResponse {
+  averageRating: number;
+  totalReviews: number;
+  ratingBreakdown: Record<number, number>;
+  reviews: Array<{
+    id: string;
+    jobNumber?: string;
+    rating: number;
+    review: string;
+    customerName: string;
+    customerAvatar?: string;
+    createdAt: string;
+  }>;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+}
+
+export function useWorkerReviews(workerId?: string) {
+  return useQuery({
+    queryKey: ["worker", "reviews", workerId],
+    queryFn: async () => {
+      if (!workerId) return null;
+      const res = await api.get<ApiResponse<WorkerReviewsResponse>>(`/api/workers/${workerId}/reviews`);
+      return res.data || null;
+    },
+    enabled: !!workerId,
   });
 }

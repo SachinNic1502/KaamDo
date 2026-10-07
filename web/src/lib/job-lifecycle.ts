@@ -12,7 +12,7 @@ const transitions: Record<string, string[]> = {
   completion_requested: ["completed", "rework_requested"],
   rework_requested: ["work_started", "in_progress", "completion_requested"],
   completed: ["payment_pending", "paid", "closed", "disputed"],
-  payment_pending: ["paid", "disputed"],
+  payment_pending: ["paid", "rework_requested", "disputed"],
   paid: ["closed", "disputed"],
   closed: ["disputed"],
   rejected: ["searching", "worker_assigned", "cancelled"],

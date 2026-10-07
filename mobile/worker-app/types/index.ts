@@ -28,10 +28,12 @@ export interface KYCInfo {
 
 export interface BankDetails {
   accountNumber: string;
-  ifscCode: string;
-  bankName: string;
-  accountHolderName: string;
+  ifscCode?: string;
+  ifsc?: string;
+  bankName?: string;
+  accountHolderName?: string;
   upiId?: string;
+  upi?: string;
 }
 
 export interface WorkerProfile {
@@ -144,10 +146,33 @@ export interface EarningsSummary {
 export interface PayoutTransaction {
   _id: string;
   amount: number;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: "pending" | "processing" | "completed" | "failed" | "paid" | "submitted" | "eligible";
   payoutDate: string;
   transactionReference?: string;
   paymentMethod: string;
+}
+
+export interface AttendanceRecord {
+  _id: string;
+  jobId?: {
+    _id: string;
+    jobNumber?: string;
+    title?: string;
+  } | string;
+  workerId: string;
+  customerId?: {
+    _id: string;
+    name?: string;
+    phone?: string;
+  } | string;
+  date: string;
+  checkIn?: string;
+  checkOut?: string;
+  workingHours?: number;
+  status: "present" | "absent" | "half_day" | "approved" | "rejected";
+  notes?: string;
+  approvedWage?: number;
+  createdAt?: string;
 }
 
 export interface ApiResponse<T = any> {

@@ -16,17 +16,40 @@ import {
   useWorkerEarnings,
   usePayoutHistory,
   useRequestPayout,
+  useWorkerProfile,
 } from "../../../hooks/use-api";
 
 export const EarningsScreen = ({ navigation }: any) => {
   const { data: earnings, isLoading: earnLoading, refetch: refetchEarn } = useWorkerEarnings();
   const { data: payouts = [], isLoading: payLoading, refetch: refetchPays } = usePayoutHistory();
+  const { data: workerProfile } = useWorkerProfile();
   const requestPayoutMutation = useRequestPayout();
 
   const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"upi" | "bank">("upi");
   const [upiId, setUpiId] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [ifsc, setIfsc] = useState("");
+  const [accountHolderName, setAccountHolderName] = useState("");
+
+  // Sync profile bank details if available
+  React.useEffect(() => {
+    if (workerProfile?.bankDetails) {
+      if (workerProfile.bankDetails.upi && !upiId) {
+        setUpiId(workerProfile.bankDetails.upi);
+      }
+      if (workerProfile.bankDetails.accountNumber && !accountNumber) {
+        setAccountNumber(workerProfile.bankDetails.accountNumber);
+      }
+      if (workerProfile.bankDetails.ifsc && !ifsc) {
+        setIfsc(workerProfile.bankDetails.ifsc);
+      }
+      if (workerProfile.bankDetails.accountHolderName && !accountHolderName) {
+        setAccountHolderName(workerProfile.bankDetails.accountHolderName);
+      }
+    }
+  }, [workerProfile]);
 
   const pendingBalance = earnings?.pendingPayout || 0;
 
@@ -44,17 +67,33 @@ export const EarningsScreen = ({ navigation }: any) => {
       Alert.alert("Invalid UPI ID", "Please enter a valid UPI VPA (e.g. mobile@upi).");
       return;
     }
+    if (paymentMethod === "bank") {
+      if (!accountNumber || accountNumber.trim().length < 8) {
+        Alert.alert("Invalid Account Number", "Please enter a valid bank account number.");
+        return;
+      }
+      if (!ifsc || ifsc.trim().length < 4) {
+        Alert.alert("Invalid IFSC", "Please enter a valid bank IFSC code.");
+        return;
+      }
+    }
 
     try {
       await requestPayoutMutation.mutateAsync({
         amount: amountNum,
         paymentMethod,
-        upiId: paymentMethod === "upi" ? upiId : undefined,
+        upiId: paymentMethod === "upi" ? upiId.trim() : undefined,
+        accountNumber: paymentMethod === "bank" ? accountNumber.trim() : undefined,
+        ifsc: paymentMethod === "bank" ? ifsc.trim().toUpperCase() : undefined,
+        accountHolderName: paymentMethod === "bank" ? accountHolderName.trim() : undefined,
       });
 
       setWithdrawModalVisible(false);
       setWithdrawAmount("");
-      Alert.alert("Payout Requested", "Your withdrawal request has been initiated. Settlement will reflect within 2-4 hours.");
+      Alert.alert(
+        "Payout Requested",
+        "Your withdrawal request has been initiated. Settlement will reflect within 2-4 hours."
+      );
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to process withdrawal request.");
     }
@@ -156,7 +195,17 @@ export const EarningsScreen = ({ navigation }: any) => {
 
         {/* Payout History Ledger */}
         <View style={styles.historySection}>
-          <Text style={styles.historyTitle}>Withdrawal & Settlement History</Text>
+          <View style={styles.historyHeaderRow}>
+            <Text style={styles.historyTitle}>Withdrawal & Settlement History</Text>
+            {payouts.length > 0 && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("PayoutHistory")}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.viewAllHistoryText}>View All</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {payouts.length === 0 ? (
             <EmptyState
@@ -268,7 +317,7 @@ export const EarningsScreen = ({ navigation }: any) => {
               </TouchableOpacity>
             </View>
 
-            {paymentMethod === "upi" && (
+            {paymentMethod === "upi" ? (
               <Input
                 label="UPI Virtual Payment Address"
                 placeholder="e.g. mobile@okhdfcbank"
@@ -276,6 +325,32 @@ export const EarningsScreen = ({ navigation }: any) => {
                 onChangeText={setUpiId}
                 leftIcon="at-outline"
               />
+            ) : (
+              <View style={{ gap: Spacing.xs }}>
+                <Input
+                  label="Account Holder Name"
+                  placeholder="e.g. Rahul Sharma"
+                  value={accountHolderName}
+                  onChangeText={setAccountHolderName}
+                  leftIcon="person-outline"
+                />
+                <Input
+                  label="Bank Account Number"
+                  placeholder="e.g. 50100412345678"
+                  value={accountNumber}
+                  onChangeText={setAccountNumber}
+                  keyboardType="numeric"
+                  leftIcon="card-outline"
+                />
+                <Input
+                  label="IFSC Code"
+                  placeholder="e.g. HDFC0001234"
+                  value={ifsc}
+                  onChangeText={(val) => setIfsc(val.toUpperCase())}
+                  autoCapitalize="characters"
+                  leftIcon="business-outline"
+                />
+              </View>
             )}
 
             <PrimaryButton
@@ -421,11 +496,21 @@ const styles = StyleSheet.create({
   historySection: {
     marginBottom: Spacing.lg,
   },
+  historyHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
   historyTitle: {
     fontSize: FontSize.base,
     fontWeight: "700",
     color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
+  },
+  viewAllHistoryText: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.primary,
   },
   demoPayouts: {
     gap: Spacing.sm,

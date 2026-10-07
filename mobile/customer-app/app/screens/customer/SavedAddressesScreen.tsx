@@ -85,7 +85,7 @@ export default function SavedAddressesScreen({ navigation }: any) {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            const updated = await userService.deleteAddress(addressItem.address);
+            const updated = await userService.deleteAddress(addressItem._id || addressItem.address);
             setAddresses(updated);
             toast.success("Deleted", "Address removed from your profile.");
           },

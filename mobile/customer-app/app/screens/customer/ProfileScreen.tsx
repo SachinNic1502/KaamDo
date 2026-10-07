@@ -68,6 +68,12 @@ export default function CustomerProfileScreen({ navigation }: any) {
           route: "SavedAddresses",
         },
         {
+          icon: "receipt-outline",
+          title: "Payments & Invoices",
+          subtitle: "Track your paid service receipts & transactions",
+          route: "PaymentHistory",
+        },
+        {
           icon: "pricetag-outline",
           title: "Offers & Coupons",
           subtitle: "Save on your upcoming home repairs",

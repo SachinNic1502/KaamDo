@@ -67,13 +67,16 @@ export async function POST(request: NextRequest) {
       }
 
       let discount = 0;
-      if (promo.discountType === "percentage") {
-        discount = Math.round((orderAmount * promo.discountValue) / 100);
+      const promoType = (promo as any).type || (promo as any).discountType || "percentage";
+      const promoVal = Number((promo as any).value ?? (promo as any).discountValue ?? 0);
+
+      if (promoType === "percentage") {
+        discount = Math.round((orderAmount * promoVal) / 100);
         if (promo.maxDiscount && discount > promo.maxDiscount) {
           discount = promo.maxDiscount;
         }
       } else {
-        discount = promo.discountValue;
+        discount = promoVal;
       }
       discount = Math.min(discount, orderAmount);
 

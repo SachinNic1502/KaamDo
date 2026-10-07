@@ -1,5 +1,15 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+export interface ISavedAddress {
+  _id?: mongoose.Types.ObjectId | string;
+  label?: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isDefault?: boolean;
+}
+
 export interface IUserDocument extends Document {
   name: string;
   email?: string;
@@ -17,6 +27,7 @@ export interface IUserDocument extends Document {
   sessionVersion: number;
   createdAt: Date;
   updatedAt: Date;
+  savedAddresses?: ISavedAddress[];
   notificationSettings: {
     jobUpdates: boolean;
     chatMessages: boolean;
@@ -45,6 +56,16 @@ const UserSchema = new Schema<IUserDocument>(
     lockUntil: { type: Date },
     passwordChangedAt: { type: Date },
     sessionVersion: { type: Number, default: 0 },
+    savedAddresses: [
+      {
+        label: { type: String, default: "Home" },
+        address: { type: String, required: true },
+        city: { type: String, default: "Noida" },
+        state: { type: String, default: "Uttar Pradesh" },
+        pincode: { type: String, required: true },
+        isDefault: { type: Boolean, default: false },
+      },
+    ],
     notificationSettings: {
       jobUpdates: { type: Boolean, default: true },
       chatMessages: { type: Boolean, default: true },

@@ -83,10 +83,14 @@ export const ProfileScreen = ({ navigation }: any) => {
               <Text style={styles.statLabel}>Jobs Done</Text>
             </View>
             <View style={styles.statDivider} />
-            <View style={styles.statItem}>
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={() => navigation.navigate("Reviews")}
+              activeOpacity={0.7}
+            >
               <RatingBadge rating={workerProfile?.rating || 5.0} showCount={false} size="sm" />
               <Text style={styles.statLabel}>Avg Rating</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statValue}>
@@ -176,6 +180,20 @@ export const ProfileScreen = ({ navigation }: any) => {
                 <Ionicons name="cash-outline" size={18} color={Colors.success} />
               </View>
               <Text style={styles.menuText}>Payouts & Bank Accounts</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate("Reviews")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: Colors.accentLight }]}>
+                <Ionicons name="star-outline" size={18} color={Colors.accent} />
+              </View>
+              <Text style={styles.menuText}>Client Ratings & Reviews</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
           </TouchableOpacity>

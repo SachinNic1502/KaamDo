@@ -50,6 +50,7 @@ export async function POST(
     job.status = "worker_accepted";
     if (!job.startOtp) {
       job.startOtp = generateOTP();
+      job.startOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
     await job.save();
 

@@ -13,6 +13,7 @@ import {
   Gateway,
 } from "./payment-providers";
 import { RealtimeService } from "./realtime";
+import { resolvePlatformFee } from "./commission";
 
 export async function createCheckout(userId: string, jobId: string, gateway: Gateway) {
   assertGatewayConfigured(gateway);
@@ -48,7 +49,8 @@ export async function createCheckout(userId: string, jobId: string, gateway: Gat
   }
 
   const amountMinor = Math.round(finalPrice * 100);
-  const basisPoints = Number(process.env.PLATFORM_FEE_BPS || "1000");
+  const { platformFee } = await resolvePlatformFee(job.categoryId, finalPrice);
+  const feeMinor = Math.round(platformFee * 100);
 
   let order = await PaymentOrder.findOne({ jobId });
   if (!order) {
@@ -59,7 +61,7 @@ export async function createCheckout(userId: string, jobId: string, gateway: Gat
         workerId: job.workerId,
         gateway,
         amountMinor,
-        feeMinor: Math.round((amountMinor * basisPoints) / 10000),
+        feeMinor,
       });
     } catch (error: any) {
       if (error && error.code === 11000) {

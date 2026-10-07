@@ -88,7 +88,12 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
   const currentStatus = job.status;
 
   const currentStepIdx = LIFECYCLE_STEPS.findIndex((s) => s.key === currentStatus);
-  const activeStep = currentStepIdx === -1 ? 0 : currentStepIdx;
+  const activeStep =
+    currentStepIdx === -1
+      ? ["payment_pending", "paid", "closed"].includes(currentStatus)
+        ? 5
+        : 0
+      : currentStepIdx;
 
   const approvedCharges =
     job.additionalCharges?.filter((c) => c.status === "approved") ?? [];
@@ -239,7 +244,7 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
         showBack
         onBack={() => navigation.goBack()}
         rightAction={
-          ["completed", "paid"].includes(job.status) ? (
+          ["completed", "paid", "closed"].includes(job.status) ? (
             <TouchableOpacity
               onPress={() => navigation.navigate("Rating", { jobId: job._id, workerId: worker?._id })}
               style={styles.reviewHeaderBtn}

@@ -30,13 +30,23 @@ export async function POST(request: NextRequest) {
       const ext = path.extname(originalName) || ".jpg";
       const uniqueName = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`;
 
-      const uploadDir = path.join(process.cwd(), "public", "uploads", folder);
-      await fs.mkdir(uploadDir, { recursive: true });
+      const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl?.origin || "https://kaam-do-mauve.vercel.app";
+      let publicUrl = "";
 
-      const filePath = path.join(uploadDir, uniqueName);
-      await fs.writeFile(filePath, buffer);
+      try {
+        const uploadDir = path.join(process.cwd(), "public", "uploads", folder);
+        await fs.mkdir(uploadDir, { recursive: true });
 
-      const publicUrl = `/uploads/${folder}/${uniqueName}`;
+        const filePath = path.join(uploadDir, uniqueName);
+        await fs.writeFile(filePath, buffer);
+
+        publicUrl = `${origin.replace(/\/+$/, "")}/uploads/${folder}/${uniqueName}`;
+      } catch (fsErr) {
+        // Graceful fallback for serverless read-only filesystems (e.g. Vercel EROFS)
+        const mime = file.type || "image/jpeg";
+        publicUrl = `data:${mime};base64,${buffer.toString("base64")}`;
+      }
+
       return NextResponse.json({
         success: true,
         data: {

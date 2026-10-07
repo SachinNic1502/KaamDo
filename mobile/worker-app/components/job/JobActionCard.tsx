@@ -89,6 +89,13 @@ export const JobActionCard: React.FC<JobActionCardProps> = ({
             style={{ marginTop: Spacing.sm }}
           />
         </>
+      ) : status === "payment_pending" ? (
+        <>
+          <Text style={styles.actionCardTitle}>Work Completed — Awaiting Payment</Text>
+          <Text style={styles.actionCardSub}>
+            Job work has been verified with OTP. The customer can now settle via Online (UPI/Card) or Cash on Service.
+          </Text>
+        </>
       ) : (
         <>
           <Text style={styles.actionCardTitle}>Job {status.toUpperCase()}</Text>

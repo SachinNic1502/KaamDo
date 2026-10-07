@@ -7,7 +7,7 @@ import { paginationSchema } from "@/lib/validations";
 import { handleApiError } from "@/lib/api-error";
 import { escapeSearch, userSelfUpdateSchema, userAdminUpdateSchema } from "@/lib/security-schemas";
 
-const userFields = "_id name phone email role avatar isActive isEmailVerified isPhoneVerified notificationSettings createdAt updatedAt";
+const userFields = "_id name phone email role avatar isActive isEmailVerified isPhoneVerified notificationSettings savedAddresses createdAt updatedAt";
 
 export async function GET(request: NextRequest) {
   try {

@@ -70,39 +70,50 @@ export const userService = {
   },
 
   /**
-   * Get saved addresses from local device storage
+   * Get saved addresses from backend or local device storage cache
    */
   async getSavedAddresses(): Promise<Address[]> {
     try {
-      const data = await SecureStore.getItemAsync(SAVED_ADDRESSES_KEY);
-      if (!data) {
-        return [
-          {
-            label: "Home",
-            address: "Flat 402, Royal Palms, Sector 18",
-            city: "Noida",
-            state: "Uttar Pradesh",
-            pincode: "201301",
-          },
-          {
-            label: "Office",
-            address: "Tower B, Cyber Hub, DLF Phase 2",
-            city: "Gurugram",
-            state: "Haryana",
-            pincode: "122002",
-          },
-        ];
+      const token = await SecureStore.getItemAsync("token");
+      if (token) {
+        const res = await api.get<ApiResponse<Address[]>>("/api/users/addresses", token);
+        if (res.data && Array.isArray(res.data)) {
+          await SecureStore.setItemAsync(SAVED_ADDRESSES_KEY, JSON.stringify(res.data));
+          return res.data;
+        }
       }
-      return JSON.parse(data);
     } catch {
-      return [];
+      // Fallback to local cache if network fails
     }
+
+    try {
+      const data = await SecureStore.getItemAsync(SAVED_ADDRESSES_KEY);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch {
+      // ignore
+    }
+    return [];
   },
 
   /**
    * Save a new delivery / service address
    */
   async saveAddress(newAddress: Address): Promise<Address[]> {
+    try {
+      const token = await SecureStore.getItemAsync("token");
+      if (token) {
+        const res = await api.post<ApiResponse<Address[]>>("/api/users/addresses", newAddress, token);
+        if (res.data && Array.isArray(res.data)) {
+          await SecureStore.setItemAsync(SAVED_ADDRESSES_KEY, JSON.stringify(res.data));
+          return res.data;
+        }
+      }
+    } catch {
+      // Fallback to local storage
+    }
+
     const addresses = await this.getSavedAddresses();
     const updated = [newAddress, ...addresses.filter((a) => a.address !== newAddress.address)];
     await SecureStore.setItemAsync(SAVED_ADDRESSES_KEY, JSON.stringify(updated));
@@ -112,9 +123,26 @@ export const userService = {
   /**
    * Delete a saved address
    */
-  async deleteAddress(addressString: string): Promise<Address[]> {
+  async deleteAddress(addressIdentifier: string): Promise<Address[]> {
+    try {
+      const token = await SecureStore.getItemAsync("token");
+      if (token) {
+        const isMongoId = /^[0-9a-fA-F]{24}$/.test(addressIdentifier);
+        const queryParam = isMongoId
+          ? `addressId=${addressIdentifier}`
+          : `address=${encodeURIComponent(addressIdentifier)}`;
+        const res = await api.delete<ApiResponse<Address[]>>(`/api/users/addresses?${queryParam}`, token);
+        if (res.data && Array.isArray(res.data)) {
+          await SecureStore.setItemAsync(SAVED_ADDRESSES_KEY, JSON.stringify(res.data));
+          return res.data;
+        }
+      }
+    } catch {
+      // Fallback to local storage
+    }
+
     const addresses = await this.getSavedAddresses();
-    const updated = addresses.filter((a) => a.address !== addressString);
+    const updated = addresses.filter((a) => (a._id ? a._id !== addressIdentifier : a.address !== addressIdentifier));
     await SecureStore.setItemAsync(SAVED_ADDRESSES_KEY, JSON.stringify(updated));
     return updated;
   },

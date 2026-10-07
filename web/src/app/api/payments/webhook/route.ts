@@ -1,31 +1,170 @@
 import { NextRequest } from "next/server";
-import { ApiError, handleApiError } from "@/lib/api-error";
-import { successResponse } from "@/lib/api-response";
-import { validSignature } from "@/lib/services/payment-providers";
-import { reconcileCheckout } from "@/lib/services/checkout";
+import crypto from "crypto";
 import { connectDB } from "@/lib/db";
+import { Job, Payment } from "@/lib/models";
 import PaymentOrder from "@/lib/models/payment-order.model";
+import PayoutObligation from "@/lib/models/payout-obligation.model";
+import { successResponse, errorResponse } from "@/lib/api-response";
+import { RealtimeService } from "@/lib/services/realtime";
+
 export async function POST(request: NextRequest) {
   try {
-    const raw = await request.text();
-    if (raw.length > 100000) throw new ApiError(413, "Payload too large", "INVALID_REQUEST");
-    const gateway = new URL(request.url).searchParams.get("provider");
-    let valid = false;
-    if (gateway === "razorpay" && process.env.RAZORPAY_WEBHOOK_SECRET) {
-      valid = validSignature(raw, request.headers.get("x-razorpay-signature") || "", process.env.RAZORPAY_WEBHOOK_SECRET);
-    } else if (gateway === "cashfree" && process.env.CASHFREE_CLIENT_SECRET) {
-      const timestamp = request.headers.get("x-webhook-timestamp") || "";
-      valid = /^\d+$/.test(timestamp) && validSignature(timestamp + raw, request.headers.get("x-webhook-signature") || "", process.env.CASHFREE_CLIENT_SECRET, "base64");
-    }
-    if (!valid) throw new ApiError(401, "Invalid webhook signature", "UNAUTHORIZED");
-    const event = JSON.parse(raw);
-    const relevant = gateway === "razorpay" ? ["payment.captured", "order.paid"].includes(event.event) : event.type === "PAYMENT_SUCCESS_WEBHOOK";
-    if (!relevant) return successResponse({ ignored: true });
-    const orderId = gateway === "razorpay" ? event.payload?.payment?.entity?.order_id ?? event.payload?.order?.entity?.id : event.data?.order?.order_id;
-    if (typeof orderId !== "string") throw new ApiError(400, "Missing order", "INVALID_REQUEST");
     await connectDB();
-    const order = await PaymentOrder.findOne({ gateway, orderId });
-    if (!order) throw new ApiError(409, "Order requires reconciliation", "ORDER_RECOVERY_REQUIRED");
-    return successResponse(await reconcileCheckout(String(order.jobId)));
-  } catch (error) { return handleApiError(error); }
+    const rawBody = await request.text();
+    let payload: any = {};
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return errorResponse("Invalid JSON payload", 400);
+    }
+
+    // 1. Razorpay Webhook
+    if (payload.event && payload.payload?.payment?.entity) {
+      const razorpaySignature = request.headers.get("x-razorpay-signature");
+      const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+      if (secret && razorpaySignature) {
+        const expectedSignature = crypto
+          .createHmac("sha256", secret)
+          .update(rawBody)
+          .digest("hex");
+        if (expectedSignature !== razorpaySignature) {
+          return errorResponse("Invalid webhook signature", 401);
+        }
+      }
+
+      const entity = payload.payload.payment.entity;
+      const orderId = entity.order_id;
+      const paymentId = entity.id;
+
+      if (payload.event === "payment.captured") {
+        const order = await PaymentOrder.findOne({ orderId });
+        if (!order) {
+          return successResponse({ received: true }, "Order not found in system, acknowledged");
+        }
+
+        if (order.status === "completed") {
+          return successResponse({ received: true }, "Order already completed");
+        }
+
+        order.status = "completed";
+        order.paymentId = paymentId;
+        await order.save();
+
+        const jobId = String(order.jobId);
+        const userId = String(order.customerId);
+
+        const job = await Job.findById(jobId);
+        if (job) {
+          job.status = "paid";
+          await job.save();
+        }
+
+        const payment = await Payment.findOneAndUpdate(
+          { jobId: order.jobId },
+          {
+            $set: {
+              customerId: order.customerId,
+              workerId: order.workerId,
+              amount: order.amountMinor / 100,
+              platformFee: order.feeMinor / 100,
+              workerEarning: (order.amountMinor - order.feeMinor) / 100,
+              status: "completed",
+              paymentMethod: "razorpay",
+              transactionId: `razorpay:${paymentId}`,
+            },
+          },
+          { upsert: true, new: true }
+        );
+
+        await PayoutObligation.findOneAndUpdate(
+          { paymentId: payment._id },
+          {
+            $set: {
+              workerId: order.workerId,
+              amountMinor: order.amountMinor - order.feeMinor,
+              gateway: "razorpay",
+              providerPaymentId: paymentId,
+              status: "awaiting_settlement",
+            },
+          },
+          { upsert: true, new: true }
+        );
+
+        await RealtimeService.broadcastJobUpdate({
+          jobId,
+          status: "paid",
+          customerId: userId,
+          workerId: order.workerId.toString(),
+          updateData: { status: "paid", paymentMethod: "razorpay" },
+        });
+
+        return successResponse({ received: true }, "Razorpay payment webhook processed");
+      }
+    }
+
+    // 2. Cashfree Webhook
+    if (payload.data?.order?.order_id || payload.orderId) {
+      const orderId = payload.data?.order?.order_id || payload.orderId;
+      const paymentId = payload.data?.payment?.cf_payment_id || payload.referenceId || `cf_${Date.now()}`;
+      const status = payload.data?.payment?.payment_status || payload.txStatus;
+
+      if (status === "SUCCESS" || status === "PAID") {
+        const order = await PaymentOrder.findOne({ orderId });
+        if (order && order.status !== "completed") {
+          order.status = "completed";
+          order.paymentId = String(paymentId);
+          await order.save();
+
+          const jobId = String(order.jobId);
+          await Job.findByIdAndUpdate(jobId, { $set: { status: "paid" } });
+
+          const payment = await Payment.findOneAndUpdate(
+            { jobId: order.jobId },
+            {
+              $set: {
+                customerId: order.customerId,
+                workerId: order.workerId,
+                amount: order.amountMinor / 100,
+                platformFee: order.feeMinor / 100,
+                workerEarning: (order.amountMinor - order.feeMinor) / 100,
+                status: "completed",
+                paymentMethod: "cashfree",
+                transactionId: `cashfree:${paymentId}`,
+              },
+            },
+            { upsert: true, new: true }
+          );
+
+          await PayoutObligation.findOneAndUpdate(
+            { paymentId: payment._id },
+            {
+              $set: {
+                workerId: order.workerId,
+                amountMinor: order.amountMinor - order.feeMinor,
+                gateway: "cashfree",
+                providerPaymentId: String(paymentId),
+                status: "awaiting_settlement",
+              },
+            },
+            { upsert: true, new: true }
+          );
+
+          await RealtimeService.broadcastJobUpdate({
+            jobId,
+            status: "paid",
+            customerId: String(order.customerId),
+            workerId: String(order.workerId),
+            updateData: { status: "paid", paymentMethod: "cashfree" },
+          });
+        }
+        return successResponse({ received: true }, "Cashfree payment webhook processed");
+      }
+    }
+
+    return successResponse({ received: true }, "Webhook received and logged");
+  } catch (error: any) {
+    console.error("Payment webhook error:", error);
+    return errorResponse(error.message || "Webhook processing error", 500);
+  }
 }

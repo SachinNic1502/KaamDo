@@ -253,6 +253,21 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
           onOpenMaps={handleOpenMaps}
         />
 
+        {/* Attendance Log Link if active */}
+        {["assigned", "accepted", "in_progress", "arrived"].includes(job.status) && (
+          <TouchableOpacity
+            style={styles.attendanceBarBtn}
+            onPress={() => navigation.navigate("Attendance")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.attendanceBarLeft}>
+              <Ionicons name="time" size={18} color={Colors.primary} />
+              <Text style={styles.attendanceBarText}>Log Shift Attendance / Hours</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
         {/* Work Description, Charges & Parts */}
         <JobScopeCard job={job} />
       </ScrollView>
@@ -361,5 +376,27 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: Spacing.base,
     paddingBottom: 115,
+  },
+  attendanceBarBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 12,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  attendanceBarLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  attendanceBarText: {
+    fontSize: FontSize.xs + 1,
+    fontWeight: "700",
+    color: Colors.textPrimary,
   },
 });

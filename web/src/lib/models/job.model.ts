@@ -41,8 +41,10 @@ export interface IJobDocument extends Document {
   additionalCharges: IAdditionalChargeDocument[];
   materials: IMaterialDocument[];
   startOtp?: string;
+  startOtpExpiresAt?: Date;
   startOtpFailures: number;
   completionOtp?: string;
+  completionOtpExpiresAt?: Date;
   startTime?: Date;
   endTime?: Date;
   rating?: number;
@@ -124,8 +126,10 @@ const JobSchema = new Schema<IJobDocument>(
       },
     ],
     startOtp: String,
+    startOtpExpiresAt: Date,
     startOtpFailures: { type: Number, default: 0 },
     completionOtp: String,
+    completionOtpExpiresAt: Date,
     startTime: Date,
     endTime: Date,
     rating: Number,

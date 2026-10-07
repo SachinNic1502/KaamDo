@@ -10,7 +10,13 @@ const commissionRuleSchema = z.object({
   category: z.string().min(1),
   type: z.enum(["percentage", "fixed"]),
   value: z.number().min(0).max(100000),
-});
+}).refine(
+  (data) => data.type !== "percentage" || data.value <= 50,
+  {
+    message: "Percentage commission cannot exceed 50%",
+    path: ["value"],
+  }
+);
 
 const cancellationPolicySchema = z.object({
   status: z.string().min(1),
@@ -74,6 +80,25 @@ export async function PATCH(request: NextRequest) {
     }
 
     await settings.save();
+
+    // Synchronize standalone Commission model collection with PlatformSetting commissionRules
+    if (validated.commissionRules && Array.isArray(validated.commissionRules)) {
+      const { Commission } = await import("@/lib/models");
+      for (const rule of validated.commissionRules) {
+        await Commission.findOneAndUpdate(
+          { category: rule.category },
+          {
+            $set: {
+              category: rule.category,
+              type: rule.type,
+              value: rule.value,
+              isActive: true,
+            },
+          },
+          { upsert: true, new: true }
+        );
+      }
+    }
 
     return successResponse(settings, "Platform settings updated successfully");
   } catch (error) {

@@ -12,13 +12,16 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../utils/constants";
-import { useWorkerDetail } from "../../../hooks/use-api";
+import { useWorkerDetail, useWorkerReviews } from "../../../hooks/use-api";
 import { AppHeader, Avatar, Card, PrimaryButton, OutlineButton, RatingBadge } from "../../../components/ui";
 
 export default function CustomerWorkerDetailScreen({ route, navigation }: any) {
   const workerId = route.params?.workerId;
   const { data, isLoading } = useWorkerDetail(workerId);
+  const { data: reviewsData } = useWorkerReviews(workerId);
   const worker = data?.data;
+  const reviews = reviewsData?.data?.reviews || [];
+  const reviewSummary = reviewsData?.data;
 
   const handleCall = () => {
     if (worker?.userId?.phone) {
@@ -136,6 +139,45 @@ export default function CustomerWorkerDetailScreen({ route, navigation }: any) {
                   </View>
                 ))}
               </View>
+            </Card>
+
+            {/* Client Reviews & Feedback */}
+            <Card style={styles.sectionCard}>
+              <View style={styles.reviewHeaderRow}>
+                <Text style={styles.sectionTitle}>Client Reviews ({reviewSummary?.totalReviews || 0})</Text>
+                {reviewSummary?.averageRating ? (
+                  <View style={styles.starScoreWrap}>
+                    <Ionicons name="star" size={13} color={Colors.accent} />
+                    <Text style={styles.starScoreText}>{reviewSummary.averageRating.toFixed(1)} / 5</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {reviews.length === 0 ? (
+                <Text style={styles.noReviewsText}>
+                  No reviews yet. Be the first to book and rate this technician!
+                </Text>
+              ) : (
+                reviews.slice(0, 4).map((rev: any, idx: number) => (
+                  <View key={rev.id || idx} style={styles.reviewItem}>
+                    <View style={styles.reviewItemTop}>
+                      <Text style={styles.reviewerName}>{rev.customerName || "Verified Client"}</Text>
+                      <View style={styles.reviewStarsRow}>
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Ionicons
+                            key={s}
+                            name={s <= (rev.rating || 5) ? "star" : "star-outline"}
+                            size={12}
+                            color={Colors.accent}
+                            style={{ marginRight: 1 }}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={styles.reviewCommentText}>{rev.review || "Completed service successfully."}</Text>
+                  </View>
+                ))
+              )}
             </Card>
 
             {/* KaamDo Trust & Safety */}
@@ -360,5 +402,56 @@ const styles = StyleSheet.create({
     fontSize: FontSize.base,
     fontWeight: "800",
     color: Colors.primary,
+  },
+  reviewHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.sm,
+  },
+  starScoreWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.accentLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    gap: 4,
+  },
+  starScoreText: {
+    fontSize: FontSize.xxs + 1,
+    fontWeight: "800",
+    color: Colors.accent,
+  },
+  noReviewsText: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    fontStyle: "italic",
+    paddingVertical: Spacing.xs,
+  },
+  reviewItem: {
+    paddingVertical: Spacing.xs + 2,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  reviewItemTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  reviewerName: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  reviewStarsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reviewCommentText: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    lineHeight: 16,
   },
 });

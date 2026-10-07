@@ -47,11 +47,13 @@ export interface Subcategory {
 }
 
 export interface Address {
+  _id?: string;
   label?: string;
   address: string;
   city: string;
   state: string;
   pincode: string;
+  isDefault?: boolean;
 }
 
 export interface AdditionalCharge {

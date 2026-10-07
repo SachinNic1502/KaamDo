@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Job, Payment } from "@/lib/models";
+import { Job, Payment, PayoutObligation } from "@/lib/models";
 import { successResponse, errorResponse, paginatedResponse } from "@/lib/api-response";
 import { requireAuth, requireRole } from "@/lib/auth-middleware";
 import { paginationSchema } from "@/lib/validations";
 import { handleApiError } from "@/lib/api-error";
+import { resolvePlatformFee } from "@/lib/services/commission";
 
 export async function GET(request: NextRequest) {
   try {
@@ -96,8 +97,9 @@ export async function POST(request: NextRequest) {
       fullJob.finalPrice = totalPayable;
       await fullJob.save();
 
-      const platformFee = Math.round(totalPayable * 0.1);
-      const workerEarning = totalPayable - platformFee;
+      // Dynamic Commission calculation using PlatformSetting.commissionRules
+      const { platformFee } = await resolvePlatformFee(fullJob.categoryId, totalPayable);
+      const workerEarning = Math.max(0, totalPayable - platformFee);
 
       const payment = await Payment.findOneAndUpdate(
         { jobId: fullJob._id },
@@ -116,13 +118,30 @@ export async function POST(request: NextRequest) {
         { upsert: true, new: true }
       );
 
+      // Create / update PayoutObligation for worker settlement tracking
+      if (fullJob.workerId) {
+        await PayoutObligation.findOneAndUpdate(
+          { paymentId: payment._id },
+          {
+            $set: {
+              workerId: fullJob.workerId,
+              amountMinor: Math.round(workerEarning * 100),
+              gateway: "cash",
+              providerPaymentId: payment.transactionId,
+              status: "eligible",
+            },
+          },
+          { upsert: true, new: true }
+        );
+      }
+
       const { RealtimeService } = await import("@/lib/services/realtime");
       await RealtimeService.broadcastJobUpdate({
         jobId: fullJob._id.toString(),
         status: "paid",
         customerId: fullJob.customerId.toString(),
         workerId: fullJob.workerId?.toString(),
-        updateData: { status: "paid", paymentMethod: "cash", amount: totalPayable },
+        updateData: { status: "paid", paymentMethod: "cash", amount: totalPayable, workerEarning },
       });
 
       return successResponse({
@@ -130,6 +149,8 @@ export async function POST(request: NextRequest) {
         jobStatus: "paid",
         paymentMethod: "cash",
         amount: totalPayable,
+        platformFee,
+        workerEarning,
         paymentId: payment._id,
       }, "Cash payment confirmed and recorded successfully");
     }

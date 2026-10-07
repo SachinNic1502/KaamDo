@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
       pricingModel: subcategory.pricingModel,
       estimatedPrice: subcategory.basePrice,
       startOtp,
+      startOtpExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
     if (match) {
@@ -237,6 +238,7 @@ export async function PATCH(request: NextRequest) {
         }
         if (!job.startOtp) {
           job.startOtp = generateOTP();
+          job.startOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
         }
         await RealtimeService.notifyWorkerAccepted({
           jobId: job._id.toString(),
@@ -263,13 +265,20 @@ export async function PATCH(request: NextRequest) {
 
       if (validated.status === "work_started") {
         if ((job.startOtpFailures ?? 0) >= 5) return errorResponse("Start code locked. Contact support.", 429, "OTP_RATE_LIMITED");
+        if (job.startOtpExpiresAt && new Date() > new Date(job.startOtpExpiresAt)) {
+          return errorResponse("Start code has expired. Please request customer to refresh the code.", 400, "OTP_EXPIRED");
+        }
         if (!job.startOtp || !updates.startOtp || updates.startOtp !== job.startOtp) {
           if (updates.startOtp) await Job.updateOne({ _id: job._id, status: "arrived" }, { $inc: { startOtpFailures: 1, __v: 1 } });
           return errorResponse("Invalid OTP", 400);
         }
         job.startTime = new Date();
         job.startOtp = undefined;
-        if (!job.completionOtp) job.completionOtp = generateOTP();
+        job.startOtpExpiresAt = undefined;
+        if (!job.completionOtp) {
+          job.completionOtp = generateOTP();
+          job.completionOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        }
         await RealtimeService.notifyWorkStarted({
           jobId: job._id.toString(),
           workerId: (job.workerId || authUser.userId).toString(),
@@ -278,7 +287,10 @@ export async function PATCH(request: NextRequest) {
       }
 
       if (validated.status === "completion_requested") {
-        if (!job.completionOtp) job.completionOtp = generateOTP();
+        if (!job.completionOtp) {
+          job.completionOtp = generateOTP();
+          job.completionOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        }
         await RealtimeService.notifyWorkCompleted({
           jobId: job._id.toString(),
           workerId: (job.workerId || authUser.userId).toString(),
@@ -287,22 +299,41 @@ export async function PATCH(request: NextRequest) {
       }
 
       if (validated.status === "completed") {
+        if (job.completionOtpExpiresAt && new Date() > new Date(job.completionOtpExpiresAt)) {
+          return errorResponse("Completion code has expired. Please request customer to refresh the code.", 400, "OTP_EXPIRED");
+        }
         if (!job.completionOtp || !updates.completionOtp || updates.completionOtp !== job.completionOtp) {
           return errorResponse("Invalid OTP", 400);
         }
         job.endTime = new Date();
         job.completionOtp = undefined;
-        if (job.pricingModel === "fixed" || job.pricingModel === "visit") job.finalPrice = job.estimatedPrice;
+        job.completionOtpExpiresAt = undefined;
+
+        // Synchronize final price before determining next status
+        const approvedChargesSum = (job.additionalCharges || [])
+          .filter((c: any) => c.status === "approved")
+          .reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+        const materialsSum = (job.materials || [])
+          .reduce((sum: number, m: any) => sum + (m.totalPrice || 0), 0);
+        const baseLabor = job.estimatedPrice || 0;
+        const totalFinalPrice = Math.round(baseLabor + approvedChargesSum + materialsSum);
+        job.finalPrice = totalFinalPrice;
+
+        const nextStatus = totalFinalPrice > 0 ? "payment_pending" : "completed";
+        job.status = nextStatus;
+
         await RealtimeService.broadcastJobUpdate({
           jobId: job._id.toString(),
-          status: "completed",
+          status: nextStatus,
           customerId: job.customerId.toString(),
           workerId: job.workerId?.toString(),
+          updateData: { status: nextStatus, finalPrice: totalFinalPrice },
         });
       }
 
       if (validated.status === "cancelled") {
         job.cancelledBy = authUser.userId as any;
+        job.status = "cancelled";
         await RealtimeService.broadcastJobUpdate({
           jobId: job._id.toString(),
           status: "cancelled",
@@ -311,7 +342,9 @@ export async function PATCH(request: NextRequest) {
         });
       }
 
-      job.status = validated.status;
+      if (validated.status !== "completed" && validated.status !== "cancelled") {
+        job.status = validated.status;
+      }
     }
 
     if (updates.workerId) {
@@ -321,6 +354,7 @@ export async function PATCH(request: NextRequest) {
       if (!worker || !account) return errorResponse("Worker unavailable", 400);
       job.workerId = updates.workerId;
       job.startOtp = generateOTP();
+      job.startOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       job.startOtpFailures = 0;
       job.status = "worker_assigned";
 

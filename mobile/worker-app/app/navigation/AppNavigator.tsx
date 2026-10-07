@@ -23,6 +23,9 @@ import { ProfileScreen } from "../screens/worker/ProfileScreen";
 import { JobDetailScreen } from "../screens/worker/JobDetailScreen";
 import { KYCOnboardingScreen } from "../screens/worker/KYCOnboardingScreen";
 import { SkillsScreen } from "../screens/worker/SkillsScreen";
+import { PayoutHistoryScreen } from "../screens/worker/PayoutHistoryScreen";
+import { AttendanceScreen } from "../screens/worker/AttendanceScreen";
+import { ReviewsScreen } from "../screens/worker/ReviewsScreen";
 
 // Common Screens
 import WorkerChatScreen from "../screens/common/ChatScreen";
@@ -116,6 +119,9 @@ export function AppNavigator() {
             <Stack.Screen name="Notifications" component={WorkerNotificationsScreen} />
             <Stack.Screen name="Dispute" component={WorkerDisputeScreen} />
             <Stack.Screen name="Rating" component={WorkerRatingScreen} />
+            <Stack.Screen name="PayoutHistory" component={PayoutHistoryScreen} />
+            <Stack.Screen name="Attendance" component={AttendanceScreen} />
+            <Stack.Screen name="Reviews" component={ReviewsScreen} />
             <Stack.Screen name="Settings" component={WorkerSettingsScreen} />
             <Stack.Screen name="Support" component={WorkerSupportScreen} />
           </>

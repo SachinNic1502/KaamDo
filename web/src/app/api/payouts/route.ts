@@ -64,9 +64,36 @@ export async function POST(request: NextRequest) {
         amount: z.number().positive(),
         currency: z.string().optional().default("INR"),
         beneficiaryName: z.string().optional(),
+        paymentMethod: z.enum(["upi", "bank"]).optional().default("upi"),
+        upiId: z.string().optional(),
+        accountNumber: z.string().optional(),
+        ifsc: z.string().optional(),
+        accountHolderName: z.string().optional(),
       }).parse(await request.json());
 
       const workerProfile = await WorkerProfile.findOne({ userId: actor.userId });
+
+      const resolvedAccountNumber =
+        workerBody.accountNumber?.trim() || workerProfile?.bankDetails?.accountNumber || "PENDING";
+      const resolvedIfsc =
+        workerBody.ifsc?.trim() || workerProfile?.bankDetails?.ifsc || "PENDING";
+      const resolvedUpi =
+        workerBody.upiId?.trim() || workerBody.beneficiaryName?.trim() || workerProfile?.bankDetails?.upi;
+
+      // Persist provided bank/UPI details to worker profile for future withdrawals
+      if (workerProfile && (workerBody.accountNumber || workerBody.ifsc || workerBody.upiId)) {
+        await WorkerProfile.updateOne(
+          { userId: actor.userId },
+          {
+            $set: {
+              "bankDetails.accountNumber": resolvedAccountNumber !== "PENDING" ? resolvedAccountNumber : workerProfile.bankDetails?.accountNumber,
+              "bankDetails.ifsc": resolvedIfsc !== "PENDING" ? resolvedIfsc : workerProfile.bankDetails?.ifsc,
+              "bankDetails.upi": resolvedUpi || workerProfile.bankDetails?.upi,
+              "bankDetails.accountHolderName": workerBody.accountHolderName || workerProfile.bankDetails?.accountHolderName,
+            },
+          }
+        );
+      }
 
       const eligibleObligations = await PayoutObligation.find({
         workerId: actor.userId,
@@ -76,7 +103,7 @@ export async function POST(request: NextRequest) {
       const totalEligibleMinor = eligibleObligations.reduce((sum: number, o: any) => sum + (o.amountMinor || 0), 0);
       const requestedMinor = Math.round(workerBody.amount * 100);
 
-      if (eligibleObligations.length > 0 && requestedMinor > totalEligibleMinor) {
+      if (totalEligibleMinor <= 0 || requestedMinor > totalEligibleMinor) {
         throw new ApiError(400, "Withdrawal amount exceeds available balance", "INSUFFICIENT_FUNDS");
       }
 
@@ -85,9 +112,9 @@ export async function POST(request: NextRequest) {
         amount: workerBody.amount,
         status: "submitted",
         bankDetails: {
-          accountNumber: workerProfile?.bankDetails?.accountNumber || "PENDING",
-          ifsc: workerProfile?.bankDetails?.ifsc || "PENDING",
-          upi: workerProfile?.bankDetails?.upi,
+          accountNumber: resolvedAccountNumber,
+          ifsc: resolvedIfsc,
+          upi: resolvedUpi,
         },
       });
 
@@ -132,12 +159,17 @@ export async function POST(request: NextRequest) {
     }
 
     const payment = await Payment.findOne({ _id: obligation.paymentId, status: "completed" });
-    const order = payment && await PaymentOrder.findOne({ jobId: payment.jobId, status: "completed" });
-    if (!order) throw new ApiError(409, "Confirmed payment not found", "PAYMENT_PENDING");
+    if (!payment) throw new ApiError(409, "Confirmed payment not found", "PAYMENT_PENDING");
 
-    const providerId = await reconcileProviderPayment(order.gateway, order.orderId, order.amountMinor);
-    if (providerId !== obligation.providerPaymentId) {
-      throw new ApiError(409, "Provider payment mismatch", "INVALID_PAYMENT_PROOF");
+    // For online gateways (razorpay, cashfree), verify provider gateway record
+    if (payment.paymentMethod !== "cash" && payment.paymentMethod !== "cod") {
+      const order = await PaymentOrder.findOne({ jobId: payment.jobId, status: "completed" });
+      if (!order) throw new ApiError(409, "Confirmed payment gateway order not found", "PAYMENT_PENDING");
+
+      const providerId = await reconcileProviderPayment(order.gateway, order.orderId, order.amountMinor);
+      if (providerId !== obligation.providerPaymentId) {
+        throw new ApiError(409, "Provider payment mismatch", "INVALID_PAYMENT_PROOF");
+      }
     }
 
     const result = await mongoose.connection.transaction(async session => {

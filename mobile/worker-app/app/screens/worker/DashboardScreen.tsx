@@ -22,6 +22,7 @@ import {
   useWorkerJobs,
   useWorkerEarnings,
   useAcceptJob,
+  useAttendanceList,
 } from "../../../hooks/use-api";
 import { api } from "../../../services/api";
 
@@ -46,6 +47,19 @@ export const DashboardScreen = ({ navigation }: any) => {
     isLoading: earnLoading,
     refetch: refetchEarnings,
   } = useWorkerEarnings();
+
+  const {
+    data: attendanceLogs = [],
+    refetch: refetchAttendance,
+  } = useAttendanceList();
+
+  const todayAttendance = React.useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    return (attendanceLogs || []).find((r: any) => {
+      const recDate = new Date(r.date).toISOString().split("T")[0];
+      return recDate === today;
+    });
+  }, [attendanceLogs]);
 
   const acceptJobMutation = useAcceptJob();
 
@@ -173,6 +187,7 @@ export const DashboardScreen = ({ navigation }: any) => {
     refetchRequests();
     refetchJobs();
     refetchEarnings();
+    refetchAttendance();
   };
 
   const activeJob = activeJobs[0];
@@ -375,6 +390,74 @@ export const DashboardScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
 
+        {/* Daily Shift Attendance Quick Card */}
+        <TouchableOpacity
+          style={styles.shiftAttendanceCard}
+          onPress={() => navigation.navigate("Attendance")}
+          activeOpacity={0.85}
+        >
+          <View style={styles.shiftAttendanceLeft}>
+            <View
+              style={[
+                styles.shiftIconWrap,
+                todayAttendance?.checkIn && !todayAttendance?.checkOut
+                  ? styles.shiftIconWrapActive
+                  : styles.shiftIconWrapIdle,
+              ]}
+            >
+              <Ionicons
+                name="time"
+                size={20}
+                color={
+                  todayAttendance?.checkIn && !todayAttendance?.checkOut
+                    ? Colors.online
+                    : Colors.primary
+                }
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={styles.shiftTitleRow}>
+                <Text style={styles.shiftCardTitle}>Shift Attendance</Text>
+                <View
+                  style={[
+                    styles.shiftStatusPill,
+                    todayAttendance?.checkIn && !todayAttendance?.checkOut
+                      ? styles.shiftStatusPillActive
+                      : todayAttendance?.checkOut
+                      ? styles.shiftStatusPillDone
+                      : styles.shiftStatusPillIdle,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.shiftStatusPillText,
+                      todayAttendance?.checkIn && !todayAttendance?.checkOut
+                        ? { color: Colors.online }
+                        : todayAttendance?.checkOut
+                        ? { color: Colors.primary }
+                        : { color: Colors.textSecondary },
+                    ]}
+                  >
+                    {todayAttendance?.checkIn && !todayAttendance?.checkOut
+                      ? "PUNCHED IN"
+                      : todayAttendance?.checkOut
+                      ? "COMPLETED"
+                      : "PUNCH REQUIRED"}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.shiftCardSub}>
+                {todayAttendance?.checkIn && !todayAttendance?.checkOut
+                  ? `Shift running • Started at ${new Date(todayAttendance.checkIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : todayAttendance?.checkOut
+                  ? `Completed • Logged ${todayAttendance.workingHours || 0} hours today`
+                  : "Tap to record your shift start and on-site hours"}
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+        </TouchableOpacity>
+
         {/* Active In-Progress Job Section (if any) */}
         {activeJob && (
           <View style={styles.activeJobSection}>
@@ -546,6 +629,18 @@ export const DashboardScreen = ({ navigation }: any) => {
               </View>
               <Text style={styles.shortcutTitle}>Bank Withdrawals</Text>
               <Text style={styles.shortcutSub}>Direct payout</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.shortcutCard}
+              onPress={() => navigation.navigate("Attendance")}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.shortcutIcon, { backgroundColor: Colors.primaryLight }]}>
+                <Ionicons name="time" size={20} color={Colors.primary} />
+              </View>
+              <Text style={styles.shortcutTitle}>Shift Attendance</Text>
+              <Text style={styles.shortcutSub}>Punch & Logs</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1070,5 +1165,72 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xxs,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  shiftAttendanceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.base,
+    ...Shadows.sm,
+  },
+  shiftAttendanceLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  shiftIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.md,
+  },
+  shiftIconWrapActive: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+  },
+  shiftIconWrapIdle: {
+    backgroundColor: Colors.primaryLight,
+  },
+  shiftTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 2,
+  },
+  shiftCardTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+  },
+  shiftStatusPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  shiftStatusPillActive: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+  },
+  shiftStatusPillDone: {
+    backgroundColor: Colors.primaryLight,
+  },
+  shiftStatusPillIdle: {
+    backgroundColor: Colors.surfaceSubtle,
+  },
+  shiftStatusPillText: {
+    fontSize: FontSize.xxs,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  shiftCardSub: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    marginTop: 1,
   },
 });

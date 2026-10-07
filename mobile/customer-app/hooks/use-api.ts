@@ -131,3 +131,27 @@ export function useUpdateProfile() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }
+
+export function useWorkerReviews(workerId?: string) {
+  return useQuery({
+    queryKey: ["worker-reviews", workerId],
+    queryFn: async () => {
+      const token = await getToken();
+      return api.get<ApiResponse<{
+        averageRating: number;
+        totalReviews: number;
+        ratingBreakdown: Record<number, number>;
+        reviews: Array<{
+          id: string;
+          jobNumber?: string;
+          rating: number;
+          review: string;
+          customerName: string;
+          customerAvatar?: string;
+          createdAt: string;
+        }>;
+      }>>(`/api/workers/${workerId}/reviews`, token);
+    },
+    enabled: !!workerId,
+  });
+}

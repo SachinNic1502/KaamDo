@@ -42,6 +42,7 @@ import CustomerPrivacyScreen from "../screens/common/PrivacyScreen";
 import CustomerAboutScreen from "../screens/common/AboutScreen";
 import SavedAddressesScreen from "../screens/customer/SavedAddressesScreen";
 import EditProfileScreen from "../screens/customer/EditProfileScreen";
+import CustomerPaymentHistoryScreen from "../screens/customer/PaymentHistoryScreen";
 
 import BubbleTabBar from "../../components/navigation/BubbleTabBar";
 
@@ -151,6 +152,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Settings" component={CustomerSettingsScreen} />
             <Stack.Screen name="Support" component={CustomerSupportScreen} />
             <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
+            <Stack.Screen name="PaymentHistory" component={CustomerPaymentHistoryScreen} />
             <Stack.Screen name="Privacy" component={CustomerPrivacyScreen} />
             <Stack.Screen name="About" component={CustomerAboutScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />

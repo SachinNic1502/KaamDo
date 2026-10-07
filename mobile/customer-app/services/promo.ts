@@ -20,5 +20,5 @@ export async function fetchPromos(): Promise<ApiResponse<PromoCode[]>> {
 
 export async function validatePromo(code: string, amount: number): Promise<ApiResponse<any>> {
   const token = await SecureStore.getItemAsync("token");
-  return api.post("/api/promotions", { action: "validate", code, amount }, token || undefined);
+  return api.post("/api/promotions/validate", { code, orderAmount: amount }, token || undefined);
 }

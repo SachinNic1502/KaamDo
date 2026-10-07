@@ -112,7 +112,26 @@ export async function PATCH(request: NextRequest) {
 
     await dispute.save();
 
-    return successResponse(dispute, "Dispute updated");
+    // If dispute was resolved, transition the Job from 'disputed' to 'closed' or 'refunded'
+    if (status === "resolved" && dispute.jobId) {
+      const job = await Job.findById(dispute.jobId);
+      if (job && job.status === "disputed") {
+        const nextJobStatus = resolution?.toLowerCase().includes("refund") ? "refunded" : "closed";
+        job.status = nextJobStatus;
+        await job.save();
+
+        const { RealtimeService } = await import("@/lib/services/realtime");
+        await RealtimeService.broadcastJobUpdate({
+          jobId: job._id.toString(),
+          status: nextJobStatus,
+          customerId: job.customerId.toString(),
+          workerId: job.workerId?.toString(),
+          updateData: { status: nextJobStatus, resolution },
+        });
+      }
+    }
+
+    return successResponse(dispute, "Dispute updated and resolved successfully");
   } catch (error) {
     return handleApiError(error);
   }
