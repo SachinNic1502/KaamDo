@@ -14,6 +14,9 @@ export interface CompletionOtpModalProps {
   isPending: boolean;
   customerName?: string;
   totalAmount: number;
+  baseAmount?: number;
+  extraChargesAmount?: number;
+  materialsAmount?: number;
   demoOtp?: string;
 }
 
@@ -26,6 +29,9 @@ export const CompletionOtpModal: React.FC<CompletionOtpModalProps> = ({
   isPending,
   customerName,
   totalAmount,
+  baseAmount,
+  extraChargesAmount,
+  materialsAmount,
   demoOtp = "5678",
 }) => {
   return (
@@ -47,7 +53,7 @@ export const CompletionOtpModal: React.FC<CompletionOtpModalProps> = ({
 
         <View style={styles.payoutHighlightCard}>
           <View style={styles.payoutHighlightInfo}>
-            <Text style={styles.payoutHighlightLabel}>Earnings to Credit</Text>
+            <Text style={styles.payoutHighlightLabel}>Total Earnings to Settle</Text>
             <Text style={styles.payoutHighlightSub}>
               Credited to pending balance instantly
             </Text>
@@ -56,6 +62,32 @@ export const CompletionOtpModal: React.FC<CompletionOtpModalProps> = ({
             ₹{totalAmount.toLocaleString("en-IN")}
           </Text>
         </View>
+
+        {Boolean((extraChargesAmount && extraChargesAmount > 0) || (materialsAmount && materialsAmount > 0)) && (
+          <View style={styles.payoutBreakdownCard}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Base Inspection / Labor</Text>
+              <Text style={styles.breakdownVal}>₹{(baseAmount || 0).toLocaleString("en-IN")}</Text>
+            </View>
+            {Boolean(extraChargesAmount && extraChargesAmount > 0) && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Approved Extra Labor</Text>
+                <Text style={styles.breakdownVal}>+₹{(extraChargesAmount || 0).toLocaleString("en-IN")}</Text>
+              </View>
+            )}
+            {Boolean(materialsAmount && materialsAmount > 0) && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Materials & Hardware</Text>
+                <Text style={styles.breakdownVal}>+₹{(materialsAmount || 0).toLocaleString("en-IN")}</Text>
+              </View>
+            )}
+            <View style={styles.breakdownDivider} />
+            <View style={styles.breakdownTotalRow}>
+              <Text style={styles.breakdownTotalLabel}>Total Settle Amount</Text>
+              <Text style={styles.breakdownTotalVal}>₹{totalAmount.toLocaleString("en-IN")}</Text>
+            </View>
+          </View>
+        )}
 
         <OtpBoxInput
           value={otp}
@@ -174,6 +206,52 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: Colors.secondaryDark,
     marginLeft: Spacing.sm,
+  },
+  payoutBreakdownCard: {
+    backgroundColor: Colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm + 2,
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 3,
+  },
+  breakdownLabel: {
+    fontSize: FontSize.xxs + 1,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+  },
+  breakdownVal: {
+    fontSize: FontSize.xxs + 1,
+    color: Colors.textPrimary,
+    fontWeight: "700",
+  },
+  breakdownDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
+  },
+  breakdownTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 2,
+  },
+  breakdownTotalLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+  },
+  breakdownTotalVal: {
+    fontSize: FontSize.sm,
+    fontWeight: "800",
+    color: Colors.secondaryDark,
   },
   demoFillChip: {
     flexDirection: "row",

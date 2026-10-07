@@ -96,14 +96,13 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
     job.additionalCharges?.filter((c) => c.status === "pending") ?? [];
 
   const materialsTotal =
-    job.materials?.reduce((sum, m) => sum + (m.totalPrice || 0), 0) ?? 0;
+    job.materials?.reduce((sum: number, m: any) => sum + (m.totalPrice || ((m.quantity || 1) * (m.unitPrice || 0))), 0) ?? 0;
   const additionalTotal = approvedCharges.reduce(
-    (sum, c) => sum + (c.amount || 0),
+    (sum: number, c: any) => sum + (c.amount || 0),
     0
   );
-  const basePrice = job.estimatedPrice || 0;
-  const finalPayable =
-    job.finalPrice || basePrice + additionalTotal + materialsTotal;
+  const basePrice = job.estimatedPrice || (job as any)?.pricing?.basePrice || 0;
+  const finalPayable = Math.round(basePrice + additionalTotal + materialsTotal);
 
   const handleCall = () => {
     if (worker?.phone) {

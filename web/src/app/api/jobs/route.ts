@@ -366,14 +366,6 @@ export async function PATCH(request: NextRequest) {
         return errorResponse("Charge has already been decided", 409, "INVALID_JOB_STATE");
       }
       charge.status = chargeDecision.decision;
-
-      await RealtimeService.broadcastJobUpdate({
-        jobId: job._id.toString(),
-        status: job.status,
-        customerId: job.customerId.toString(),
-        workerId: job.workerId?.toString(),
-        updateData: { additionalCharges: job.additionalCharges },
-      });
     }
 
     if (updates.material) {
@@ -387,6 +379,29 @@ export async function PATCH(request: NextRequest) {
       job.materials = updates.materials.map((material) => ({
         ...material, totalPrice: material.quantity * material.unitPrice,
       }));
+    }
+
+    // Always keep job.finalPrice synchronized with base labor + approved extra labor + materials
+    const approvedChargesSum = (job.additionalCharges || [])
+      .filter((c: any) => c.status === "approved")
+      .reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+    const materialsSum = (job.materials || [])
+      .reduce((sum: number, m: any) => sum + (m.totalPrice || 0), 0);
+    const baseLabor = job.estimatedPrice || 0;
+    job.finalPrice = Math.round(baseLabor + approvedChargesSum + materialsSum);
+
+    if (chargeDecision || updates.material || updates.materials || updates.additionalCharge) {
+      await RealtimeService.broadcastJobUpdate({
+        jobId: job._id.toString(),
+        status: job.status,
+        customerId: job.customerId.toString(),
+        workerId: job.workerId?.toString(),
+        updateData: {
+          additionalCharges: job.additionalCharges,
+          materials: job.materials,
+          finalPrice: job.finalPrice,
+        },
+      });
     }
 
     if (updates.rating !== undefined) {

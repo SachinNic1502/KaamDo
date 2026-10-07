@@ -194,7 +194,15 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const totalJobPrice = job.finalPrice || job.estimatedPrice || 0;
+  const approvedChargesTotal =
+    (job.additionalCharges || [])
+      .filter((c: any) => c.status === "approved")
+      .reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+  const materialsTotal =
+    (job.materials || [])
+      .reduce((sum: number, m: any) => sum + (m.totalPrice || ((m.quantity || 1) * (m.unitPrice || 0))), 0);
+  const basePrice = job.estimatedPrice || (job as any)?.pricing?.basePrice || 0;
+  const totalJobPrice = Math.round(basePrice + approvedChargesTotal + materialsTotal);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -278,6 +286,9 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
         isPending={updateStatusMutation.isPending}
         customerName={job.customerId?.name}
         totalAmount={totalJobPrice}
+        baseAmount={basePrice}
+        extraChargesAmount={approvedChargesTotal}
+        materialsAmount={materialsTotal}
         demoOtp={(job as any)?.completionOtp || "5678"}
       />
 

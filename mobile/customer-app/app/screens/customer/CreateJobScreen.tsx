@@ -492,64 +492,94 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
             style={styles.saveDraftBtn}
             activeOpacity={0.7}
           >
-            <Ionicons name="bookmark-outline" size={15} color={Colors.primary} />
+            <Ionicons name="bookmark-outline" size={14} color={Colors.primary} />
             <Text style={styles.saveDraftText}>Save Draft</Text>
           </TouchableOpacity>
         }
       />
 
-      {/* Stepper Progress */}
-      <View style={styles.stepProgressContainer}>
-        {STEPS.map((s, idx) => (
-          <TouchableOpacity
+      {/* Top Segmented Progress Track */}
+      <View style={styles.segmentedProgressRow}>
+        {STEPS.map((_, idx) => (
+          <View
             key={idx}
-            style={styles.stepItem}
-            onPress={() => idx <= currentStep && setCurrentStep(idx)}
-            activeOpacity={idx <= currentStep ? 0.7 : 1}
-          >
-            <View
-              style={[
-                styles.stepCircle,
-                idx === currentStep
-                  ? styles.stepCircleActive
-                  : idx < currentStep
-                  ? styles.stepCircleDone
-                  : styles.stepCircleInactive,
-              ]}
+            style={[
+              styles.segmentPill,
+              idx < currentStep
+                ? styles.segmentPillCompleted
+                : idx === currentStep
+                ? styles.segmentPillActive
+                : styles.segmentPillInactive,
+            ]}
+          />
+        ))}
+      </View>
+
+      {/* Modern Stepper Indicator Node Bar */}
+      <View style={styles.stepProgressContainer}>
+        {/* Continuous connector background line */}
+        <View style={styles.stepperTrackBase}>
+          <View
+            style={[
+              styles.stepperTrackFill,
+              { width: `${(currentStep / (STEPS.length - 1)) * 100}%` },
+            ]}
+          />
+        </View>
+
+        {STEPS.map((s, idx) => {
+          const isDone = idx < currentStep;
+          const isActive = idx === currentStep;
+          return (
+            <TouchableOpacity
+              key={idx}
+              style={styles.stepNode}
+              onPress={() => idx <= currentStep && setCurrentStep(idx)}
+              activeOpacity={idx <= currentStep ? 0.7 : 1}
             >
-              {idx < currentStep ? (
-                <Ionicons name="checkmark" size={12} color={Colors.white} />
-              ) : (
-                <Text
-                  style={[
-                    styles.stepNumber,
-                    idx === currentStep ? styles.stepNumberActive : styles.stepNumberInactive,
-                  ]}
-                >
-                  {idx + 1}
-                </Text>
-              )}
-            </View>
-            <Text
-              style={[
-                styles.stepLabelText,
-                idx === currentStep && styles.stepLabelTextActive,
-                idx < currentStep && styles.stepLabelTextDone,
-              ]}
-              numberOfLines={1}
-            >
-              {s.label}
-            </Text>
-            {idx < STEPS.length - 1 && (
               <View
                 style={[
-                  styles.stepLine,
-                  idx < currentStep ? styles.stepLineDone : styles.stepLineInactive,
+                  styles.stepCircle,
+                  isActive
+                    ? styles.stepCircleActive
+                    : isDone
+                    ? styles.stepCircleDone
+                    : styles.stepCircleInactive,
                 ]}
-              />
-            )}
-          </TouchableOpacity>
-        ))}
+              >
+                {isDone ? (
+                  <Ionicons name="checkmark" size={13} color={Colors.white} />
+                ) : (
+                  <Ionicons
+                    name={s.icon}
+                    size={13}
+                    color={isActive ? Colors.white : Colors.textMuted}
+                  />
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.stepLabelText,
+                  isActive && styles.stepLabelTextActive,
+                  isDone && styles.stepLabelTextDone,
+                ]}
+                numberOfLines={1}
+              >
+                {s.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Contextual Step Breadcrumb Header */}
+      <View style={styles.stepContextBar}>
+        <View style={styles.stepBadge}>
+          <Text style={styles.stepBadgeText}>
+            Step {currentStep + 1} of {STEPS.length}
+          </Text>
+        </View>
+        <Text style={styles.stepContextTitle}>{STEPS[currentStep].label}</Text>
       </View>
 
       {/* Draft Resume Banner */}
@@ -557,7 +587,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
         <View style={styles.draftNoticeBanner}>
           <View style={styles.draftNoticeLeft}>
             <View style={styles.draftIconBadge}>
-              <Ionicons name="bookmark" size={16} color={Colors.primary} />
+              <Ionicons name="bookmark" size={15} color={Colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: Spacing.sm }}>
               <Text style={styles.draftNoticeTitle}>Unfinished Draft Found</Text>
@@ -585,26 +615,30 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* STEP 0: Category & Subcategory */}
           {currentStep === 0 && (
             <View>
               {preferredWorkerName && (
                 <View style={styles.preferredWorkerBadge}>
-                  <Ionicons name="person-circle-outline" size={18} color={Colors.primary} />
-                  <Text style={styles.preferredWorkerText}>
-                    Booking directly with: {preferredWorkerName}
-                  </Text>
+                  <Ionicons name="person-circle-outline" size={20} color={Colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.preferredWorkerTitle}>Direct Technician Booking</Text>
+                    <Text style={styles.preferredWorkerText}>
+                      Assigned to {preferredWorkerName}
+                    </Text>
+                  </View>
                 </View>
               )}
 
               <Text style={styles.stepTitle}>Select Service Trade</Text>
               <Text style={styles.stepSub}>
-                What type of trade specialist do you need for this job?
+                Choose the required trade specialist for your job.
               </Text>
 
               <View style={styles.searchBarBox}>
-                <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+                <Ionicons name="search-outline" size={19} color={Colors.textSecondary} />
                 <TextInput
                   style={styles.searchBarInput}
                   placeholder="Search trades (Electrician, Plumber, AC Repair)..."
@@ -613,8 +647,8 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                   onChangeText={setCategorySearch}
                 />
                 {categorySearch.length > 0 && (
-                  <TouchableOpacity onPress={() => setCategorySearch("")}>
-                    <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                  <TouchableOpacity onPress={() => setCategorySearch("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -641,7 +675,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                           styles.choiceCard,
                           isSelected && styles.choiceCardActive,
                         ]}
-                        activeOpacity={0.75}
+                        activeOpacity={0.8}
                       >
                         <View
                           style={[
@@ -655,12 +689,13 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                             color={isSelected ? Colors.white : Colors.primary}
                           />
                         </View>
-                        <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+                        <View style={styles.choiceCardContent}>
                           <Text
                             style={[
                               styles.choiceCardText,
                               isSelected && styles.choiceCardTextActive,
                             ]}
+                            numberOfLines={1}
                           >
                             {c.name}
                           </Text>
@@ -669,11 +704,13 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                           </Text>
                         </View>
                         {isSelected && (
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={18}
-                            color={Colors.primary}
-                          />
+                          <View style={styles.checkBadge}>
+                            <Ionicons
+                              name="checkmark"
+                              size={12}
+                              color={Colors.white}
+                            />
+                          </View>
                         )}
                       </TouchableOpacity>
                     );
@@ -684,7 +721,10 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
               {selectedCategoryObj && selectedCategoryObj.subcategories?.length > 0 && (
                 <View style={{ marginTop: Spacing.xl }}>
                   <Text style={styles.subHeading}>
-                    Specific {selectedCategoryObj.name} Services
+                    {selectedCategoryObj.name} Specific Services
+                  </Text>
+                  <Text style={styles.stepSub}>
+                    Select the exact job service for accurate estimate.
                   </Text>
                   <View style={styles.subOptionsGrid}>
                     {selectedCategoryObj.subcategories.map((sub) => {
@@ -697,7 +737,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                             styles.subChoiceCard,
                             isSubSelected && styles.subChoiceCardActive,
                           ]}
-                          activeOpacity={0.75}
+                          activeOpacity={0.8}
                         >
                           <View style={styles.subChoiceHeader}>
                             <Text
@@ -705,17 +745,22 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                                 styles.subChoiceText,
                                 isSubSelected && styles.subChoiceTextActive,
                               ]}
+                              numberOfLines={2}
                             >
                               {sub.name}
                             </Text>
                             {isSubSelected && (
-                              <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                              <View style={styles.checkBadge}>
+                                <Ionicons name="checkmark" size={11} color={Colors.white} />
+                              </View>
                             )}
                           </View>
                           <View style={styles.pricePillRow}>
-                            <Text style={styles.pricePill}>
-                              {sub.basePrice ? `₹${sub.basePrice} base` : "Visit & Quote"}
-                            </Text>
+                            <View style={styles.pricePill}>
+                              <Text style={styles.pricePillText}>
+                                {sub.basePrice ? `₹${sub.basePrice}` : "Quote"}
+                              </Text>
+                            </View>
                             <Text style={styles.pricingModelTag}>
                               {sub.pricingModel === "hourly" ? "/ hour" : "standard"}
                             </Text>
@@ -734,7 +779,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
             <View>
               <Text style={styles.stepTitle}>Describe the Problem</Text>
               <Text style={styles.stepSub}>
-                Be specific so technicians can bring the right tools and materials.
+                Be specific so technicians arrive equipped with the right tools.
               </Text>
 
               {/* Quick Tags */}
@@ -767,13 +812,15 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
               />
 
               <View style={styles.photoSectionHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.subHeading}>Attach Photos (Optional)</Text>
                   <Text style={styles.fieldHelper}>
-                    Help workers inspect the issue before arriving (up to 4 photos).
+                    Help technicians inspect the fault beforehand (up to 4 photos).
                   </Text>
                 </View>
-                <Text style={styles.photoCountBadge}>{form.photos.length}/4</Text>
+                <View style={styles.photoCountBadgeWrap}>
+                  <Text style={styles.photoCountBadge}>{form.photos.length}/4</Text>
+                </View>
               </View>
 
               <View style={styles.photoGrid}>
@@ -783,8 +830,9 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                     <TouchableOpacity
                       onPress={() => removePhoto(idx)}
                       style={styles.removePhotoBtn}
+                      activeOpacity={0.8}
                     >
-                      <Ionicons name="close" size={14} color={Colors.white} />
+                      <Ionicons name="close" size={13} color={Colors.white} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -795,7 +843,9 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                     style={styles.addPhotoBtn}
                     activeOpacity={0.75}
                   >
-                    <Ionicons name="camera-outline" size={24} color={Colors.primary} />
+                    <View style={styles.addPhotoIconCircle}>
+                      <Ionicons name="camera-outline" size={22} color={Colors.primary} />
+                    </View>
                     <Text style={styles.addPhotoText}>Add Photo</Text>
                   </TouchableOpacity>
                 )}
@@ -808,7 +858,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
             <View>
               <Text style={styles.stepTitle}>Service Location</Text>
               <Text style={styles.stepSub}>
-                Where should the technician arrive to inspect or execute work?
+                Provide the exact address where the technician should arrive.
               </Text>
 
               {savedAddresses.length > 0 && (
@@ -848,7 +898,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                               </Text>
                             </View>
                             {isSelected && (
-                              <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+                              <Ionicons name="checkmark-circle" size={17} color={Colors.primary} />
                             )}
                           </View>
                           <Text style={styles.savedAddressStreet} numberOfLines={2}>
@@ -866,37 +916,48 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
 
               <Text style={styles.subHeading}>Address Type</Text>
               <View style={styles.labelChips}>
-                {["Home", "Office", "Commercial", "Other"].map((lbl) => (
+                {[
+                  { label: "Home", icon: "home-outline" },
+                  { label: "Office", icon: "business-outline" },
+                  { label: "Commercial", icon: "storefront-outline" },
+                  { label: "Other", icon: "location-outline" },
+                ].map((item) => (
                   <TouchableOpacity
-                    key={lbl}
-                    onPress={() => updateForm("addressLabel", lbl)}
+                    key={item.label}
+                    onPress={() => updateForm("addressLabel", item.label)}
                     style={[
                       styles.addressLabelChip,
-                      form.addressLabel === lbl && styles.addressLabelChipActive,
+                      form.addressLabel === item.label && styles.addressLabelChipActive,
                     ]}
+                    activeOpacity={0.75}
                   >
+                    <Ionicons
+                      name={item.icon as any}
+                      size={13}
+                      color={form.addressLabel === item.label ? Colors.white : Colors.textSecondary}
+                    />
                     <Text
                       style={[
                         styles.addressLabelText,
-                        form.addressLabel === lbl && styles.addressLabelTextActive,
+                        form.addressLabel === item.label && styles.addressLabelTextActive,
                       ]}
                     >
-                      {lbl}
+                      {item.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               <FormField
-                label="Street Address / Flat No."
+                label="Street Address / House / Flat No."
                 placeholder="Flat 402, Block B, Green Heights"
                 value={form.address}
                 onChangeText={(t) => updateForm("address", t)}
                 required
               />
 
-              <View style={styles.twoCol}>
-                <View style={{ flex: 1, marginRight: Spacing.sm }}>
+              <View style={styles.twoColRow}>
+                <View style={styles.colHalf}>
                   <FormField
                     label="City"
                     placeholder="New Delhi"
@@ -905,7 +966,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                     required
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.colHalf}>
                   <FormField
                     label="State"
                     placeholder="Delhi"
@@ -929,11 +990,11 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
               <TouchableOpacity
                 onPress={() => setSaveAddressForFuture(!saveAddressForFuture)}
                 style={styles.saveAddressCheckRow}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
                 <Ionicons
                   name={saveAddressForFuture ? "checkbox" : "square-outline"}
-                  size={20}
+                  size={21}
                   color={saveAddressForFuture ? Colors.primary : Colors.textMuted}
                 />
                 <View style={{ marginLeft: Spacing.sm, flex: 1 }}>
@@ -941,7 +1002,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                     Save this address to Address Book
                   </Text>
                   <Text style={styles.saveAddressCheckSub}>
-                    Easily 1-tap select for your next booking.
+                    Easily 1-tap select for your future work bookings.
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -966,11 +1027,13 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                   ]}
                   activeOpacity={0.75}
                 >
-                  <Ionicons
-                    name="calendar-outline"
-                    size={20}
-                    color={form.urgency === "standard" ? Colors.primary : Colors.textSecondary}
-                  />
+                  <View style={styles.urgencyIconWrap}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color={form.urgency === "standard" ? Colors.primary : Colors.textSecondary}
+                    />
+                  </View>
                   <Text
                     style={[
                       styles.urgencyTitle,
@@ -993,11 +1056,18 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                   ]}
                   activeOpacity={0.75}
                 >
-                  <Ionicons
-                    name="flash"
-                    size={20}
-                    color={form.urgency === "urgent" ? Colors.error : Colors.textSecondary}
-                  />
+                  <View
+                    style={[
+                      styles.urgencyIconWrap,
+                      form.urgency === "urgent" && styles.urgencyIconWrapUrgent,
+                    ]}
+                  >
+                    <Ionicons
+                      name="flash"
+                      size={20}
+                      color={form.urgency === "urgent" ? Colors.error : Colors.textSecondary}
+                    />
+                  </View>
                   <Text
                     style={[
                       styles.urgencyTitle,
@@ -1011,7 +1081,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
               </View>
 
               <Text style={styles.subHeading}>Select Date</Text>
-              <View style={styles.quickDatesRow}>
+              <View style={styles.quickDatesGrid}>
                 {QUICK_DATES.map((item, idx) => {
                   const isSelected = form.date === item.date;
                   return (
@@ -1090,11 +1160,14 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                 Check your booking details before publishing to local trade specialists.
               </Text>
 
-              <Card style={{ marginBottom: Spacing.md }}>
+              <Card style={{ marginBottom: Spacing.md, padding: Spacing.md }}>
                 <View style={styles.reviewSection}>
                   <View style={styles.reviewSectionHeader}>
-                    <Text style={styles.reviewLabel}>Trade & Service</Text>
-                    <TouchableOpacity onPress={() => setCurrentStep(0)}>
+                    <View style={styles.reviewSectionIconTitle}>
+                      <Ionicons name="construct-outline" size={16} color={Colors.primary} />
+                      <Text style={styles.reviewLabel}>Trade & Service</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setCurrentStep(0)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                       <Text style={styles.editStepLink}>Edit</Text>
                     </TouchableOpacity>
                   </View>
@@ -1103,15 +1176,18 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                   </Text>
                   {selectedSubcategoryObj?.basePrice ? (
                     <Text style={styles.reviewSubPrice}>
-                      Base Price: ₹{selectedSubcategoryObj.basePrice}
+                      Base Price: ₹{selectedSubcategoryObj.basePrice} ({selectedSubcategoryObj.pricingModel === "hourly" ? "hourly" : "standard"})
                     </Text>
                   ) : null}
                 </View>
 
                 <View style={styles.reviewSection}>
                   <View style={styles.reviewSectionHeader}>
-                    <Text style={styles.reviewLabel}>Work Description</Text>
-                    <TouchableOpacity onPress={() => setCurrentStep(1)}>
+                    <View style={styles.reviewSectionIconTitle}>
+                      <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
+                      <Text style={styles.reviewLabel}>Work Description</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setCurrentStep(1)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                       <Text style={styles.editStepLink}>Edit</Text>
                     </TouchableOpacity>
                   </View>
@@ -1127,8 +1203,11 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
 
                 <View style={styles.reviewSection}>
                   <View style={styles.reviewSectionHeader}>
-                    <Text style={styles.reviewLabel}>Service Location</Text>
-                    <TouchableOpacity onPress={() => setCurrentStep(2)}>
+                    <View style={styles.reviewSectionIconTitle}>
+                      <Ionicons name="location-outline" size={16} color={Colors.primary} />
+                      <Text style={styles.reviewLabel}>Service Location</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setCurrentStep(2)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                       <Text style={styles.editStepLink}>Edit</Text>
                     </TouchableOpacity>
                   </View>
@@ -1139,8 +1218,11 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
 
                 <View style={[styles.reviewSection, { borderBottomWidth: 0 }]}>
                   <View style={styles.reviewSectionHeader}>
-                    <Text style={styles.reviewLabel}>Schedule & Urgency</Text>
-                    <TouchableOpacity onPress={() => setCurrentStep(3)}>
+                    <View style={styles.reviewSectionIconTitle}>
+                      <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+                      <Text style={styles.reviewLabel}>Schedule & Urgency</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setCurrentStep(3)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                       <Text style={styles.editStepLink}>Edit</Text>
                     </TouchableOpacity>
                   </View>
@@ -1150,9 +1232,11 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
                 </View>
               </Card>
 
-              <Card variant="flat" style={{ marginBottom: Spacing.lg }}>
+              <Card variant="flat" style={styles.guaranteeCard}>
                 <View style={styles.pricingNoteRow}>
-                  <Ionicons name="shield-checkmark" size={22} color={Colors.success} />
+                  <View style={styles.shieldIconBadge}>
+                    <Ionicons name="shield-checkmark" size={20} color={Colors.success} />
+                  </View>
                   <View style={{ marginLeft: Spacing.sm, flex: 1 }}>
                     <Text style={styles.pricingNoteTitle}>Safe & Secure Guarantee</Text>
                     <Text style={styles.pricingNoteDesc}>
@@ -1165,13 +1249,14 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
           )}
         </ScrollView>
 
+        {/* Bottom Action Footer */}
         <View style={styles.bottomBar}>
           {currentStep > 0 && (
             <OutlineButton
               title="Back"
               onPress={handleBack}
               fullWidth={false}
-              style={{ flex: 1, marginRight: Spacing.sm }}
+              style={styles.backBtn}
             />
           )}
           <PrimaryButton
@@ -1180,7 +1265,7 @@ export default function CustomerCreateJobScreen({ navigation, route }: any) {
             disabled={!canProceed()}
             loading={isPending}
             fullWidth={false}
-            style={{ flex: currentStep > 0 ? 2 : 1 }}
+            style={styles.continueBtn}
           />
         </View>
       </KeyboardAvoidingView>
@@ -1193,27 +1278,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  preferredWorkerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.primaryLight,
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    gap: 6,
-  },
-  preferredWorkerText: {
-    fontSize: FontSize.xs,
-    fontWeight: "700",
-    color: Colors.primaryDark,
-  },
   saveDraftBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.primaryLight,
     paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.md,
     gap: 4,
   },
   saveDraftText: {
@@ -1221,72 +1292,126 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.primary,
   },
-  stepProgressContainer: {
+
+  /* --- Top Segmented Progress Bar --- */
+  segmentedProgressRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+    paddingTop: 8,
+    paddingBottom: 4,
+    gap: 6,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
-  stepItem: {
+  segmentPill: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  segmentPillCompleted: {
+    backgroundColor: Colors.success,
+  },
+  segmentPillActive: {
+    backgroundColor: Colors.primary,
+  },
+  segmentPillInactive: {
+    backgroundColor: Colors.borderLight,
+  },
+
+  /* --- Stepper Indicator Nodes --- */
+  stepProgressContainer: {
+    position: "relative",
     flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.base,
+    paddingTop: 10,
+    paddingBottom: 8,
+    backgroundColor: Colors.surface,
+  },
+  stepperTrackBase: {
+    position: "absolute",
+    top: 23,
+    left: 32,
+    right: 32,
+    height: 2,
+    backgroundColor: Colors.border,
+    zIndex: 1,
+  },
+  stepperTrackFill: {
+    height: "100%",
+    backgroundColor: Colors.primary,
+  },
+  stepNode: {
     alignItems: "center",
+    width: 58,
+    zIndex: 2,
   },
   stepCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   stepCircleActive: {
     backgroundColor: Colors.primary,
+    borderWidth: 2,
+    borderColor: Colors.primaryLight2,
+    ...Shadows.sm,
   },
   stepCircleDone: {
     backgroundColor: Colors.success,
   },
   stepCircleInactive: {
-    backgroundColor: Colors.surfaceSubtle,
-    borderWidth: 1,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
     borderColor: Colors.border,
-  },
-  stepNumber: {
-    fontSize: FontSize.xxs,
-    fontWeight: "700",
-  },
-  stepNumberActive: {
-    color: Colors.white,
-  },
-  stepNumberInactive: {
-    color: Colors.textMuted,
   },
   stepLabelText: {
     fontSize: FontSize.xxs,
     fontWeight: "600",
     color: Colors.textMuted,
-    marginLeft: 4,
+    marginTop: 4,
+    textAlign: "center",
   },
   stepLabelTextActive: {
     color: Colors.primary,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   stepLabelTextDone: {
     color: Colors.textPrimary,
   },
-  stepLine: {
-    width: 14,
-    height: 2,
-    marginHorizontal: 4,
+
+  /* --- Contextual Step Header Banner --- */
+  stepContextBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 8,
+    backgroundColor: Colors.surfaceSubtle,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    gap: 8,
   },
-  stepLineDone: {
-    backgroundColor: Colors.success,
+  stepBadge: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
   },
-  stepLineInactive: {
-    backgroundColor: Colors.borderLight,
+  stepBadgeText: {
+    fontSize: FontSize.xxs,
+    fontWeight: "700",
+    color: Colors.primaryDark,
   },
+  stepContextTitle: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+
+  /* --- Draft Notice Banner --- */
   draftNoticeBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -1345,16 +1470,18 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: "700",
   },
+
+  /* --- Scroll & Containers --- */
   container: {
     flex: 1,
   },
   scrollContent: {
     padding: Spacing.base,
-    paddingBottom: Spacing.xxxl,
+    paddingBottom: 100,
   },
   stepTitle: {
     fontSize: FontSize.xl,
-    fontWeight: "700",
+    fontWeight: "800",
     color: Colors.textPrimary,
     letterSpacing: -0.3,
     marginBottom: 4,
@@ -1363,29 +1490,55 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.textSecondary,
     marginBottom: Spacing.base,
+    lineHeight: 18,
   },
+  preferredWorkerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.primaryLight,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.md,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.primaryLight2,
+  },
+  preferredWorkerTitle: {
+    fontSize: FontSize.xxs,
+    fontWeight: "700",
+    color: Colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  preferredWorkerText: {
+    fontSize: FontSize.sm,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+
+  /* --- Search Bar --- */
   searchBarBox: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
-    height: 42,
+    height: 46,
     marginBottom: Spacing.base,
   },
   searchBarInput: {
     flex: 1,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
     color: Colors.textPrimary,
     marginLeft: Spacing.sm,
   },
   subHeading: {
     fontSize: FontSize.sm,
-    fontWeight: "700",
+    fontWeight: "800",
     color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   loadingWrap: {
     paddingVertical: Spacing.xl,
@@ -1397,29 +1550,34 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: Spacing.sm,
   },
+
+  /* --- Category & Subcategory Grids --- */
   optionsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
   },
   choiceCard: {
-    width: "48%",
+    flexBasis: "48%",
+    flexGrow: 1,
+    maxWidth: "49%",
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.sm + 2,
+    padding: Spacing.md,
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
+    position: "relative",
   },
   choiceCardActive: {
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryLight,
   },
   choiceIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Colors.surfaceSubtle,
     alignItems: "center",
     justifyContent: "center",
@@ -1427,19 +1585,33 @@ const styles = StyleSheet.create({
   choiceIconWrapActive: {
     backgroundColor: Colors.primary,
   },
+  choiceCardContent: {
+    flex: 1,
+    marginLeft: Spacing.sm,
+  },
   choiceCardText: {
-    fontSize: FontSize.xs,
-    fontWeight: "600",
+    fontSize: FontSize.xs + 1,
+    fontWeight: "700",
     color: Colors.textPrimary,
   },
   choiceCardTextActive: {
     color: Colors.primaryDark,
-    fontWeight: "700",
   },
   choiceSubCount: {
     fontSize: FontSize.xxs,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  checkBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
   subOptionsGrid: {
     flexDirection: "row",
@@ -1447,12 +1619,14 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   subChoiceCard: {
-    width: "48%",
-    padding: Spacing.sm + 2,
+    flexBasis: "48%",
+    flexGrow: 1,
+    maxWidth: "49%",
+    padding: Spacing.md,
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
   },
   subChoiceCardActive: {
     borderColor: Colors.primary,
@@ -1462,46 +1636,55 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
+    minHeight: 36,
   },
   subChoiceText: {
-    fontSize: FontSize.xs,
-    fontWeight: "600",
+    fontSize: FontSize.xs + 1,
+    fontWeight: "700",
     color: Colors.textPrimary,
     flex: 1,
     marginRight: 4,
+    lineHeight: 18,
   },
   subChoiceTextActive: {
     color: Colors.primaryDark,
-    fontWeight: "700",
   },
   pricePillRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: Spacing.xs,
-    gap: 4,
+    marginTop: Spacing.sm,
+    gap: 6,
   },
   pricePill: {
+    backgroundColor: Colors.primaryLight2,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  pricePillText: {
     fontSize: FontSize.xxs,
-    fontWeight: "700",
-    color: Colors.primary,
+    fontWeight: "800",
+    color: Colors.primaryDark,
   },
   pricingModelTag: {
-    fontSize: FontSize.xxs - 1,
+    fontSize: FontSize.xxs,
     color: Colors.textMuted,
   },
+
+  /* --- Problem Tags & Photos --- */
   quickTagsBox: {
     marginBottom: Spacing.md,
   },
   quickTagsLabel: {
     fontSize: FontSize.xs,
-    fontWeight: "600",
+    fontWeight: "700",
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
   },
   quickTagsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
+    gap: 8,
   },
   quickTagChip: {
     flexDirection: "row",
@@ -1510,14 +1693,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: BorderRadius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    gap: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 4,
   },
   quickTagText: {
-    fontSize: FontSize.xxs,
+    fontSize: FontSize.xxs + 1,
     color: Colors.textPrimary,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   photoSectionHeader: {
     flexDirection: "row",
@@ -1526,8 +1709,14 @@ const styles = StyleSheet.create({
     marginTop: Spacing.base,
     marginBottom: Spacing.xs,
   },
+  photoCountBadgeWrap: {
+    backgroundColor: Colors.surfaceSubtle,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
   photoCountBadge: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.xxs,
     fontWeight: "700",
     color: Colors.textSecondary,
   },
@@ -1543,15 +1732,16 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   photoThumb: {
-    width: 76,
-    height: 76,
-    borderRadius: BorderRadius.md,
+    width: 82,
+    height: 82,
+    borderRadius: BorderRadius.lg,
     position: "relative",
+    ...Shadows.sm,
   },
   photoImg: {
     width: "100%",
     height: "100%",
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
   },
   removePhotoBtn: {
     position: "absolute",
@@ -1563,30 +1753,42 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.error,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.white,
   },
   addPhotoBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: BorderRadius.md,
+    width: 82,
+    height: 82,
+    borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: Colors.border,
+    borderColor: Colors.borderFocus,
     backgroundColor: Colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addPhotoIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primaryLight,
     alignItems: "center",
     justifyContent: "center",
   },
   addPhotoText: {
     fontSize: FontSize.xxs,
-    fontWeight: "600",
+    fontWeight: "700",
     color: Colors.primary,
-    marginTop: 2,
+    marginTop: 3,
   },
+
+  /* --- Address Book & Inputs --- */
   savedAddressSection: {
     marginBottom: Spacing.lg,
   },
   savedAddressTitle: {
     fontSize: FontSize.sm,
-    fontWeight: "700",
+    fontWeight: "800",
     color: Colors.textPrimary,
     marginBottom: Spacing.xs,
   },
@@ -1595,12 +1797,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   savedAddressCard: {
-    width: 200,
-    padding: Spacing.sm + 2,
+    width: 220,
+    padding: Spacing.md,
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
   },
   savedAddressCardActive: {
     borderColor: Colors.primary,
@@ -1610,12 +1812,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   savedAddressIconRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   savedAddressLabel: {
     fontSize: FontSize.xs,
@@ -1628,25 +1830,29 @@ const styles = StyleSheet.create({
   savedAddressStreet: {
     fontSize: FontSize.xs,
     color: Colors.textPrimary,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   savedAddressCityPincode: {
     fontSize: FontSize.xxs,
     color: Colors.textMuted,
-    marginTop: 2,
+    marginTop: 4,
   },
   labelChips: {
     flexDirection: "row",
     gap: Spacing.sm,
     marginBottom: Spacing.base,
+    flexWrap: "wrap",
   },
   addressLabelChip: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
+    gap: 5,
   },
   addressLabelChipActive: {
     backgroundColor: Colors.primary,
@@ -1654,36 +1860,44 @@ const styles = StyleSheet.create({
   },
   addressLabelText: {
     fontSize: FontSize.xs,
-    fontWeight: "600",
+    fontWeight: "700",
     color: Colors.textSecondary,
   },
   addressLabelTextActive: {
     color: Colors.white,
   },
-  twoCol: {
+  twoColRow: {
     flexDirection: "row",
+    gap: Spacing.md,
+  },
+  colHalf: {
+    flex: 1,
   },
   saveAddressCheckRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginTop: Spacing.sm,
-    padding: Spacing.sm,
-    backgroundColor: Colors.surfaceSubtle,
-    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.lg,
   },
   saveAddressCheckTitle: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.xs + 1,
     fontWeight: "700",
     color: Colors.textPrimary,
   },
   saveAddressCheckSub: {
     fontSize: FontSize.xxs,
     color: Colors.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
+
+  /* --- Urgency & Schedule --- */
   urgencyRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
+    gap: Spacing.md,
     marginBottom: Spacing.lg,
   },
   urgencyCard: {
@@ -1692,7 +1906,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
   },
   urgencyCardActive: {
     borderColor: Colors.primary,
@@ -1702,11 +1916,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.error,
     backgroundColor: "#FEF2F2",
   },
+  urgencyIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.surfaceSubtle,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  urgencyIconWrapUrgent: {
+    backgroundColor: "#FEE2E2",
+  },
   urgencyTitle: {
     fontSize: FontSize.sm,
-    fontWeight: "700",
+    fontWeight: "800",
     color: Colors.textPrimary,
-    marginTop: 6,
   },
   urgencyTitleActive: {
     color: Colors.primaryDark,
@@ -1719,19 +1944,21 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  quickDatesRow: {
+  quickDatesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
     marginBottom: Spacing.lg,
   },
   quickDateChip: {
-    width: "48%",
-    padding: Spacing.sm + 2,
+    flexBasis: "48%",
+    flexGrow: 1,
+    maxWidth: "49%",
+    padding: Spacing.md,
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
   },
   quickDateChipActive: {
     borderColor: Colors.primary,
@@ -1752,7 +1979,7 @@ const styles = StyleSheet.create({
   },
   quickDateValActive: {
     color: Colors.primary,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   timeSlotsGrid: {
     flexDirection: "row",
@@ -1761,12 +1988,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.base,
   },
   timeSlotCard: {
-    width: "48%",
-    padding: Spacing.sm + 2,
+    flexBasis: "48%",
+    flexGrow: 1,
+    maxWidth: "49%",
+    padding: Spacing.md,
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
   },
   timeSlotCardActive: {
     borderColor: Colors.primary,
@@ -1775,7 +2004,7 @@ const styles = StyleSheet.create({
   timeSlotHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   timeSlotLabel: {
     fontSize: FontSize.xs,
@@ -1790,8 +2019,10 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
+
+  /* --- Review Section --- */
   reviewSection: {
-    paddingVertical: Spacing.sm + 2,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
   },
@@ -1799,57 +2030,91 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  reviewSectionIconTitle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   reviewLabel: {
     fontSize: FontSize.xxs,
     textTransform: "uppercase",
-    fontWeight: "700",
+    fontWeight: "800",
     color: Colors.textMuted,
+    letterSpacing: 0.5,
   },
   editStepLink: {
     fontSize: FontSize.xs,
-    fontWeight: "700",
+    fontWeight: "800",
     color: Colors.primary,
   },
   reviewValue: {
     fontSize: FontSize.sm,
-    fontWeight: "600",
+    fontWeight: "700",
     color: Colors.textPrimary,
+    lineHeight: 20,
+    marginTop: 2,
   },
   reviewSubPrice: {
     fontSize: FontSize.xs,
     color: Colors.primary,
-    fontWeight: "600",
-    marginTop: 2,
+    fontWeight: "700",
+    marginTop: 3,
   },
   reviewPhotosBadge: {
     fontSize: FontSize.xs,
     color: Colors.textSecondary,
     marginTop: 4,
   },
+  guaranteeCard: {
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+  },
   pricingNoteRow: {
     flexDirection: "row",
     alignItems: "flex-start",
   },
+  shieldIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   pricingNoteTitle: {
     fontSize: FontSize.xs + 1,
-    fontWeight: "700",
-    color: Colors.textPrimary,
+    fontWeight: "800",
+    color: "#166534",
   },
   pricingNoteDesc: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
+    color: "#15803D",
     marginTop: 2,
     lineHeight: 18,
   },
+
+  /* --- Bottom Bar --- */
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.base,
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.md,
+    paddingBottom: Platform.OS === "ios" ? 28 : Spacing.base,
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
     ...Shadows.sm,
+    gap: Spacing.sm,
+  },
+  backBtn: {
+    flex: 1,
+  },
+  continueBtn: {
+    flex: 2,
   },
 });

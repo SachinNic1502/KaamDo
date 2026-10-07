@@ -8,6 +8,14 @@ export interface JobScopeCardProps {
 }
 
 export const JobScopeCard: React.FC<JobScopeCardProps> = ({ job }) => {
+  const approvedChargesTotal = (job.additionalCharges || [])
+    .filter((c: any) => c.status === "approved")
+    .reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+  const materialsTotal = (job.materials || [])
+    .reduce((sum: number, m: any) => sum + (m.totalPrice || ((m.quantity || 1) * (m.unitPrice || 0))), 0);
+  const basePrice = job.estimatedPrice || (job as any)?.pricing?.basePrice || 0;
+  const totalPrice = Math.round(basePrice + approvedChargesTotal + materialsTotal);
+
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>Task Scope & Requirements</Text>
@@ -16,7 +24,7 @@ export const JobScopeCard: React.FC<JobScopeCardProps> = ({ job }) => {
           {job.categoryId?.name || "Service"}
         </Text>
         <Text style={styles.scopePrice}>
-          ₹{(job.finalPrice || job.estimatedPrice || 0).toLocaleString("en-IN")}
+          ₹{totalPrice.toLocaleString("en-IN")}
         </Text>
       </View>
       <Text style={styles.scopeDesc}>{job.description}</Text>
