@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/api-client";
-import { Check, X, ShieldAlert, Eye, RotateCw, ZoomIn, Search, RefreshCw, FileText, AlertTriangle } from "lucide-react";
+import { Check, X, ShieldAlert, Eye, RotateCw, ZoomIn, Search, RefreshCw, FileText, AlertTriangle, Sparkles, CheckCircle2 } from "lucide-react";
 
 interface WorkerKYCItem {
   _id: string;
@@ -53,6 +53,39 @@ export default function AdminKYCPage() {
   const [processing, setProcessing] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState<any | null>(null);
+
+  async function handleRunOCR(documentType: "aadhaar" | "pan") {
+    if (!selectedWorker) return;
+    try {
+      setOcrLoading(true);
+      const token = getToken();
+      const res = await fetch("/api/admin/kyc/ocr", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          workerId: selectedWorker._id,
+          documentType,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        setOcrResult(json.data);
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        alert(errJson.error || "OCR extraction failed");
+      }
+    } catch {
+      alert("Network error running automated OCR");
+    } finally {
+      setOcrLoading(false);
+    }
+  }
 
   async function fetchKYCWorkers() {
     try {
@@ -255,28 +288,38 @@ export default function AdminKYCPage() {
                   <span className="text-[11px] font-mono text-gray-500">{selectedWorker.kyc?.aadhaarNumber || "N/A"}</span>
                 </div>
                 {selectedWorker.kyc?.aadhaarFrontUrl || selectedWorker.documents?.identity ? (
-                  <div className="relative group border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-gray-50 p-2 text-center">
-                    <img
-                      src={selectedWorker.kyc?.aadhaarFrontUrl || selectedWorker.documents?.identity}
-                      alt="Aadhaar Front"
-                      className="w-full h-44 object-cover cursor-pointer rounded"
-                      onClick={() => {
-                        setPreviewDoc(selectedWorker.kyc?.aadhaarFrontUrl || selectedWorker.documents!.identity!);
-                        setRotation(0);
-                        setZoom(1);
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer"
-                      onClick={() => {
-                        setPreviewDoc(selectedWorker.kyc?.aadhaarFrontUrl || selectedWorker.documents!.identity!);
-                        setRotation(0);
-                        setZoom(1);
-                      }}
-                    >
-                      <span className="text-white text-xs font-medium flex items-center gap-1">
-                        <ZoomIn className="w-4 h-4" /> Click to Inspect
-                      </span>
+                  <div className="space-y-2">
+                    <div className="relative group border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-gray-50 p-2 text-center">
+                      <img
+                        src={selectedWorker.kyc?.aadhaarFrontUrl || selectedWorker.documents?.identity}
+                        alt="Aadhaar Front"
+                        className="w-full h-44 object-cover cursor-pointer rounded"
+                        onClick={() => {
+                          setPreviewDoc(selectedWorker.kyc?.aadhaarFrontUrl || selectedWorker.documents!.identity!);
+                          setRotation(0);
+                          setZoom(1);
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer"
+                        onClick={() => {
+                          setPreviewDoc(selectedWorker.kyc?.aadhaarFrontUrl || selectedWorker.documents!.identity!);
+                          setRotation(0);
+                          setZoom(1);
+                        }}
+                      >
+                        <span className="text-white text-xs font-medium flex items-center gap-1">
+                          <ZoomIn className="w-4 h-4" /> Click to Inspect
+                        </span>
+                      </div>
                     </div>
+                    <button
+                      disabled={ocrLoading}
+                      onClick={() => handleRunOCR("aadhaar")}
+                      className="w-full py-1.5 px-3 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition border border-purple-200 dark:border-purple-800"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      {ocrLoading ? "Extracting text..." : "Auto-Verify Aadhaar OCR"}
+                    </button>
                   </div>
                 ) : (
                   <div className="p-8 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center text-xs text-gray-400">
@@ -292,28 +335,38 @@ export default function AdminKYCPage() {
                   <span className="text-[11px] font-mono text-gray-500">{selectedWorker.kyc?.panNumber || "N/A"}</span>
                 </div>
                 {selectedWorker.kyc?.panCardUrl || selectedWorker.documents?.address ? (
-                  <div className="relative group border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-gray-50 p-2 text-center">
-                    <img
-                      src={selectedWorker.kyc?.panCardUrl || selectedWorker.documents?.address}
-                      alt="PAN Card"
-                      className="w-full h-44 object-cover cursor-pointer rounded"
-                      onClick={() => {
-                        setPreviewDoc(selectedWorker.kyc?.panCardUrl || selectedWorker.documents!.address!);
-                        setRotation(0);
-                        setZoom(1);
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer"
-                      onClick={() => {
-                        setPreviewDoc(selectedWorker.kyc?.panCardUrl || selectedWorker.documents!.address!);
-                        setRotation(0);
-                        setZoom(1);
-                      }}
-                    >
-                      <span className="text-white text-xs font-medium flex items-center gap-1">
-                        <ZoomIn className="w-4 h-4" /> Click to Inspect
-                      </span>
+                  <div className="space-y-2">
+                    <div className="relative group border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-gray-50 p-2 text-center">
+                      <img
+                        src={selectedWorker.kyc?.panCardUrl || selectedWorker.documents?.address}
+                        alt="PAN Card"
+                        className="w-full h-44 object-cover cursor-pointer rounded"
+                        onClick={() => {
+                          setPreviewDoc(selectedWorker.kyc?.panCardUrl || selectedWorker.documents!.address!);
+                          setRotation(0);
+                          setZoom(1);
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition cursor-pointer"
+                        onClick={() => {
+                          setPreviewDoc(selectedWorker.kyc?.panCardUrl || selectedWorker.documents!.address!);
+                          setRotation(0);
+                          setZoom(1);
+                        }}
+                      >
+                        <span className="text-white text-xs font-medium flex items-center gap-1">
+                          <ZoomIn className="w-4 h-4" /> Click to Inspect
+                        </span>
+                      </div>
                     </div>
+                    <button
+                      disabled={ocrLoading}
+                      onClick={() => handleRunOCR("pan")}
+                      className="w-full py-1.5 px-3 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5 transition border border-purple-200 dark:border-purple-800"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      {ocrLoading ? "Extracting text..." : "Auto-Verify PAN OCR"}
+                    </button>
                   </div>
                 ) : (
                   <div className="p-8 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-center text-xs text-gray-400">
@@ -322,6 +375,81 @@ export default function AdminKYCPage() {
                 )}
               </div>
             </div>
+
+            {/* Automated OCR Intelligence Card */}
+            {ocrResult && (
+              <div className="bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span className="text-xs font-bold text-purple-900 dark:text-purple-200 uppercase tracking-wide">
+                      Automated OCR Intelligence: {ocrResult.documentType.toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300">
+                    Confidence: {ocrResult.confidenceScore}%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div className="bg-white/80 dark:bg-gray-900/60 p-2.5 rounded-lg border border-purple-100 dark:border-purple-900/30">
+                    <span className="text-[10px] text-gray-500 block">EXTRACTED NUMBER</span>
+                    <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                      {ocrResult.extractedData.documentNumber}
+                    </span>
+                    <span className={`text-[10px] font-bold block mt-0.5 ${ocrResult.extractedData.numberMatches ? "text-green-600" : "text-amber-600"}`}>
+                      {ocrResult.extractedData.numberMatches ? "✓ Matches Submitted" : "⚠ Check Mismatch"}
+                    </span>
+                  </div>
+
+                  <div className="bg-white/80 dark:bg-gray-900/60 p-2.5 rounded-lg border border-purple-100 dark:border-purple-900/30">
+                    <span className="text-[10px] text-gray-500 block">NAME SIMILARITY</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {ocrResult.extractedData.registeredName}
+                    </span>
+                    <span className="text-[10px] text-green-600 font-bold block mt-0.5">
+                      {ocrResult.extractedData.nameMatchScore} Match Score
+                    </span>
+                  </div>
+
+                  <div className="bg-white/80 dark:bg-gray-900/60 p-2.5 rounded-lg border border-purple-100 dark:border-purple-900/30">
+                    <span className="text-[10px] text-gray-500 block">BANK HOLDER MATCH</span>
+                    <span className="font-semibold text-gray-900 dark:text-white truncate block">
+                      {ocrResult.extractedData.bankHolderName}
+                    </span>
+                    <span className="text-[10px] text-green-600 font-bold block mt-0.5">
+                      {ocrResult.extractedData.bankNameMatchScore} Match Score
+                    </span>
+                  </div>
+
+                  <div className="bg-white/80 dark:bg-gray-900/60 p-2.5 rounded-lg border border-purple-100 dark:border-purple-900/30">
+                    <span className="text-[10px] text-gray-500 block">GOVT FORMAT</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {ocrResult.extractedData.isValidGovernmentFormat ? "Valid Checksum" : "Invalid Format"}
+                    </span>
+                    <span className={`text-[10px] font-bold block mt-0.5 ${ocrResult.autoApproveRecommended ? "text-green-600" : "text-amber-600"}`}>
+                      {ocrResult.autoApproveRecommended ? "★ Recommended" : "Manual Review"}
+                    </span>
+                  </div>
+                </div>
+
+                {ocrResult.autoApproveRecommended && (
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                      All document indicators and checksums verified successfully.
+                    </span>
+                    <button
+                      disabled={processing}
+                      onClick={() => handleReviewWorker(selectedWorker.userId._id || selectedWorker._id, "verified")}
+                      className="py-1 px-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition"
+                    >
+                      Instant Approve with OCR
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Bank Details */}
             <div className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-xl space-y-2 text-xs">

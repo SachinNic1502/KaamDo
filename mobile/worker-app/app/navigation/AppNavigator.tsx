@@ -1,8 +1,9 @@
 import React, { useEffect } from "react";
 import { View, Text, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import * as Notifications from "expo-notifications";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { setCredentials, setLoading } from "../../store/authSlice";
 import { getAuthToken, getUserData, getWorkerProfile } from "../../services/storage";
@@ -39,6 +40,29 @@ import WorkerBubbleTabBar from "../../components/navigation/WorkerBubbleTabBar";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+export const navigationRef = createNavigationContainerRef();
+
+const linking = {
+  prefixes: ["kaamdo-partner://", "kaamdo://partner"],
+  config: {
+    screens: {
+      WorkerMain: {
+        screens: {
+          Home: "home",
+          Requests: "requests",
+          Jobs: "jobs",
+          Earnings: "earnings",
+          Profile: "profile",
+        },
+      },
+      JobDetail: "job/:jobId",
+      Chat: "chat/:jobId",
+      PayoutHistory: "payouts",
+      Attendance: "attendance",
+      Reviews: "reviews",
+    },
+  },
+};
 
 function WorkerTabs() {
   return (
@@ -80,6 +104,34 @@ export function AppNavigator() {
     restoreSession();
   }, [dispatch]);
 
+  // Handle direct notification tap deep-links for technicians
+  useEffect(() => {
+    const unsub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (!data) return;
+
+      if (navigationRef.isReady()) {
+        if (data.screen === "JobDetail" && data.jobId) {
+          (navigationRef as any).navigate("JobDetail", { jobId: data.jobId });
+        } else if (data.screen === "Chat" && data.jobId) {
+          (navigationRef as any).navigate("Chat", {
+            jobId: data.jobId,
+            customerId: data.otherUserId,
+            customerName: data.senderName,
+          });
+        } else if (data.screen === "PayoutHistory") {
+          (navigationRef as any).navigate("PayoutHistory");
+        } else if (data.screen === "Reviews") {
+          (navigationRef as any).navigate("Reviews");
+        }
+      }
+    });
+
+    return () => {
+      unsub.remove();
+    };
+  }, []);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -101,7 +153,7 @@ export function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <>

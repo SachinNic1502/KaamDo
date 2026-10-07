@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   StatusBar,
   Image,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from "../../../utils/constants";
@@ -54,6 +55,16 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
   const job = data?.data;
 
   useEffect(() => {
+    if (job?.workerLocation && !workerGps) {
+      setWorkerGps({
+        lat: job.workerLocation.latitude,
+        lng: job.workerLocation.longitude,
+        updatedAt: job.workerLocation.lastUpdated,
+      });
+    }
+  }, [job?.workerLocation]);
+
+  useEffect(() => {
     if (job?.status === "on_the_way" || job?.status === "worker_assigned") {
       connectSocket();
       const unsub = onWorkerLocationUpdate((locData) => {
@@ -62,7 +73,7 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
             lng: locData.coordinates[0],
             lat: locData.coordinates[1],
             heading: locData.heading,
-            updatedAt: locData.updatedAt,
+            updatedAt: locData.updatedAt || new Date().toISOString(),
           });
         }
       });
@@ -71,6 +82,45 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
       };
     }
   }, [job?.status]);
+
+  // Dynamic distance & ETA calculation based on real GPS coordinates
+  const customerCoords = job?.address?.coordinates; // [lng, lat]
+  let dynamicDistanceKm = 0;
+  let dynamicEtaMins = 0;
+
+  if (workerGps) {
+    if (customerCoords && customerCoords.length >= 2) {
+      const lat1 = workerGps.lat;
+      const lon1 = workerGps.lng;
+      const lat2 = customerCoords[1];
+      const lon2 = customerCoords[0];
+      const R = 6371; // km
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      dynamicDistanceKm = Math.max(0.1, Number((R * c).toFixed(1)));
+    } else {
+      dynamicDistanceKm = 2.4;
+    }
+    dynamicEtaMins = Math.max(2, Math.round(dynamicDistanceKm * 2.8) + 1);
+  }
+
+  const handleOpenLiveWorkerMap = () => {
+    if (!workerGps) return;
+    const query = `${workerGps.lat},${workerGps.lng}`;
+    const url = Platform.select({
+      ios: `maps:0,0?q=${query}(Technician)`,
+      android: `geo:0,0?q=${query}(Technician)`,
+      default: `https://www.google.com/maps/search/?api=1&query=${query}`,
+    });
+    if (url) Linking.openURL(url);
+  };
 
   if (isLoading || !job) {
     return (
@@ -348,7 +398,7 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
                   color={Colors.primary}
                 />
                 <Text style={styles.etaBadgeText}>
-                  {currentStatus === "arrived" ? "Arrived" : "~9 mins"}
+                  {currentStatus === "arrived" ? "Arrived" : `~${dynamicEtaMins || 8} mins`}
                 </Text>
               </View>
             </View>
@@ -359,7 +409,9 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
                 <View>
                   <Text style={styles.statSubText}>Distance</Text>
                   <Text style={styles.statMainText}>
-                    {currentStatus === "arrived" ? "0.0 km (At Door)" : "3.2 km away"}
+                    {currentStatus === "arrived"
+                      ? "0.0 km (At Door)"
+                      : `${dynamicDistanceKm || 2.4} km away`}
                   </Text>
                 </View>
               </View>
@@ -374,6 +426,18 @@ export default function CustomerJobDetailScreen({ route, navigation }: any) {
                 </View>
               </View>
             </View>
+
+            {workerGps && (
+              <TouchableOpacity
+                style={styles.openMapBtn}
+                onPress={handleOpenLiveWorkerMap}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="map-outline" size={15} color={Colors.primary} />
+                <Text style={styles.openMapBtnText}>Track Technician on Map</Text>
+                <Ionicons name="arrow-forward" size={13} color={Colors.primary} />
+              </TouchableOpacity>
+            )}
           </Card>
         )}
 
@@ -1179,6 +1243,21 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: "700",
     color: Colors.textPrimary,
+  },
+  openMapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primaryLight || "#EEF2FF",
+    paddingVertical: 10,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.sm,
+    gap: 6,
+  },
+  openMapBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.primary,
   },
   paidSuccessCard: {
     backgroundColor: "#F0FDF4",

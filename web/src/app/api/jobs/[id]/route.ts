@@ -42,6 +42,24 @@ export async function GET(
       delete result.completionOtp;
     }
 
+    // Attach latest live worker GPS coordinates for real-time tracking
+    if (job.workerId) {
+      const workerProfile = await WorkerProfile.findOne({
+        userId: (job.workerId as any)?._id || job.workerId,
+      })
+        .select("location")
+        .lean();
+
+      if (workerProfile?.location?.coordinates && workerProfile.location.coordinates.length >= 2) {
+        result.workerLocation = {
+          latitude: workerProfile.location.coordinates[1],
+          longitude: workerProfile.location.coordinates[0],
+          address: workerProfile.location.address || "",
+          lastUpdated: workerProfile.location.lastUpdated || (workerProfile as any).updatedAt,
+        };
+      }
+    }
+
     return successResponse(result);
   } catch (error) {
     return handleApiError(error);

@@ -6,9 +6,10 @@ import {
   StyleSheet,
   StatusBar,
 } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import * as Notifications from "expo-notifications";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "../../store";
 import { loadUser } from "../../store/authSlice";
@@ -48,6 +49,28 @@ import BubbleTabBar from "../../components/navigation/BubbleTabBar";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+export const navigationRef = createNavigationContainerRef();
+
+const linking = {
+  prefixes: ["kaamdo://", "https://kaam-do-mauve.vercel.app"],
+  config: {
+    screens: {
+      CustomerMain: {
+        screens: {
+          Home: "home",
+          Services: "services",
+          Bookings: "bookings",
+          Notifications: "notifications",
+          Profile: "profile",
+        },
+      },
+      JobDetail: "job/:jobId",
+      Chat: "chat/:jobId",
+      PaymentHistory: "payments",
+      SavedAddresses: "addresses",
+    },
+  },
+};
 
 function CustomerTabs() {
   return (
@@ -76,6 +99,32 @@ export default function AppNavigator() {
     dispatch(loadUser());
   }, [dispatch]);
 
+  // Handle direct notification tap deep-links
+  useEffect(() => {
+    const unsub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (!data) return;
+
+      if (navigationRef.isReady()) {
+        if (data.screen === "JobDetail" && data.jobId) {
+          (navigationRef as any).navigate("JobDetail", { jobId: data.jobId });
+        } else if (data.screen === "Chat" && data.jobId) {
+          (navigationRef as any).navigate("Chat", {
+            jobId: data.jobId,
+            workerId: data.otherUserId,
+            workerName: data.senderName,
+          });
+        } else if (data.screen === "PaymentHistory") {
+          (navigationRef as any).navigate("PaymentHistory");
+        }
+      }
+    });
+
+    return () => {
+      unsub.remove();
+    };
+  }, []);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -94,7 +143,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

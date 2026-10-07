@@ -53,6 +53,7 @@ export interface Address {
   city: string;
   state: string;
   pincode: string;
+  coordinates?: [number, number];
   isDefault?: boolean;
 }
 
@@ -90,6 +91,12 @@ export interface Job {
   materials?: MaterialItem[];
   startOtp?: string;
   completionOtp?: string;
+  workerLocation?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    lastUpdated?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

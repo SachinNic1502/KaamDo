@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -29,6 +29,7 @@ import {
   useAddAdditionalCharge,
   useAddMaterial,
 } from "../../../hooks/use-api";
+import { locationService } from "../../../services/location";
 
 export const JobDetailScreen = ({ route, navigation }: any) => {
   const { jobId } = route.params || {};
@@ -53,6 +54,35 @@ export const JobDetailScreen = ({ route, navigation }: any) => {
   const [materialName, setMaterialName] = useState("");
   const [materialQty, setMaterialQty] = useState("1");
   const [materialUnitPrice, setMaterialUnitPrice] = useState("");
+
+  // Stream live GPS location to customer while technician is en-route
+  useEffect(() => {
+    let intervalId: any = null;
+
+    if (job?.status === "on_the_way") {
+      const streamLocation = async () => {
+        try {
+          const pos = await locationService.getCurrentPosition();
+          if (pos) {
+            await locationService.updateLocationAndRadius({
+              latitude: pos.latitude,
+              longitude: pos.longitude,
+              serviceRadiusKm: 15,
+            });
+          }
+        } catch {
+          // ignore transient GPS read or network fluctuations
+        }
+      };
+
+      streamLocation();
+      intervalId = setInterval(streamLocation, 10000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [job?.status]);
 
   if (isLoading || !job) {
     return (

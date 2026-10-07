@@ -129,6 +129,12 @@ export interface Job {
   startOtp?: string;
   completionOtp?: string;
   distanceKm?: number;
+  workerLocation?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    lastUpdated?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

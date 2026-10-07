@@ -83,8 +83,14 @@ export class RealtimeService {
 
     socketServer.sendNotificationToUser(params.userId, notification);
 
-    // Also dispatch Expo Push Notification for background/closed app delivery
-    sendPushNotificationToUser(params.userId, params.title, params.message, params.data).catch((err) => {
+    // Also dispatch Expo Push Notification for background/closed app delivery with deep-link payload
+    const pushData: Record<string, unknown> = {
+      screen: params.data?.screen || (params.data?.jobId ? "JobDetail" : "Home"),
+      url: params.data?.url || (params.data?.jobId ? `kaamdo://job/${params.data.jobId}` : undefined),
+      ...params.data,
+    };
+
+    sendPushNotificationToUser(params.userId, params.title, params.message, pushData).catch((err) => {
       console.warn("Push notification dispatch failed:", err?.message || err);
     });
 

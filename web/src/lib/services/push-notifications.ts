@@ -92,3 +92,131 @@ export async function sendPushNotificationToUser(
     return false;
   }
 }
+
+export type JobPushEvent =
+  | "job_assigned"
+  | "worker_on_the_way"
+  | "worker_arrived"
+  | "work_started"
+  | "work_completed"
+  | "payment_received";
+
+export interface JobPushParams {
+  event: JobPushEvent;
+  userId: string;
+  jobId: string;
+  jobNumber?: string;
+  serviceName?: string;
+  workerName?: string;
+  startOtp?: string;
+  amount?: number;
+}
+
+/**
+ * High-impact template dispatcher for Job Lifecycle events with direct deep-links.
+ */
+export async function sendJobPushNotification(params: JobPushParams): Promise<boolean> {
+  const { event, userId, jobId, jobNumber, serviceName, workerName, startOtp, amount } = params;
+
+  let title = "KaamDo Booking Update";
+  let body = "There is an update on your service request.";
+
+  switch (event) {
+    case "job_assigned":
+      title = "Technician Assigned! 🛠️";
+      body = `${workerName || "A verified technician"} has been assigned to your ${serviceName || "service"} booking.`;
+      break;
+    case "worker_on_the_way":
+      title = "Technician On The Way! 🛵";
+      body = `${workerName || "Your technician"} is heading to your service location now.`;
+      break;
+    case "worker_arrived":
+      title = "Technician Arrived! 🚪";
+      body = `${workerName || "Your technician"} has arrived. Share Start OTP ${startOtp || ""} to begin work.`;
+      break;
+    case "work_started":
+      title = "Service In Progress ⚡";
+      body = `Work has begun on your ${serviceName || "service"}. Live execution active.`;
+      break;
+    case "work_completed":
+      title = "Job Completed! 🎉";
+      body = `Your ${serviceName || "service"} has been completed. Please inspect and settle payment.`;
+      break;
+    case "payment_received":
+      title = "Payment Received! 💳";
+      body = `Payment of ₹${amount || 0} for booking #${jobNumber || jobId.slice(-6)} has been recorded.`;
+      break;
+  }
+
+  const deepLinkData: Record<string, unknown> = {
+    screen: "JobDetail",
+    jobId,
+    event,
+    url: `kaamdo://job/${jobId}`,
+  };
+
+  return sendPushNotificationToUser(userId, title, body, deepLinkData);
+}
+
+export interface MessagePushParams {
+  recipientId: string;
+  senderName: string;
+  messageText: string;
+  jobId: string;
+  senderUserId: string;
+}
+
+/**
+ * Dispatcher for Instant Chat Messages with 1-tap direct thread deep-linking.
+ */
+export async function sendMessagePushNotification(params: MessagePushParams): Promise<boolean> {
+  const { recipientId, senderName, messageText, jobId, senderUserId } = params;
+
+  const title = `Message from ${senderName}`;
+  const body = messageText.length > 80 ? `${messageText.slice(0, 77)}...` : messageText;
+
+  const deepLinkData: Record<string, unknown> = {
+    screen: "Chat",
+    jobId,
+    otherUserId: senderUserId,
+    senderName,
+    url: `kaamdo://chat/${jobId}`,
+  };
+
+  return sendPushNotificationToUser(recipientId, title, body, deepLinkData);
+}
+
+export interface PayoutPushParams {
+  workerUserId: string;
+  amountMinor: number;
+  status: "approved" | "processed" | "rejected";
+  payoutId: string;
+  reason?: string;
+}
+
+/**
+ * Dispatcher for Worker Earnings & Payout Notifications.
+ */
+export async function sendPayoutPushNotification(params: PayoutPushParams): Promise<boolean> {
+  const { workerUserId, amountMinor, status, payoutId, reason } = params;
+  const amountRs = (amountMinor / 100).toFixed(0);
+
+  let title = "Payout Update";
+  let body = `Your payout request of ₹${amountRs} has been updated.`;
+
+  if (status === "approved" || status === "processed") {
+    title = "Payout Processed! 💰";
+    body = `₹${amountRs} has been successfully settled to your registered bank account.`;
+  } else if (status === "rejected") {
+    title = "Payout Status Notice";
+    body = `Your payout request of ₹${amountRs} was declined${reason ? `: ${reason}` : "."}`;
+  }
+
+  const deepLinkData: Record<string, unknown> = {
+    screen: "PayoutHistory",
+    payoutId,
+    url: `kaamdo://payouts`,
+  };
+
+  return sendPushNotificationToUser(workerUserId, title, body, deepLinkData);
+}
